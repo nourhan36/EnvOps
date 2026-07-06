@@ -1,0 +1,10 @@
+terraform {
+  backend "s3" {
+    bucket       = "your-bucket_name" // add your s3 bucket name here 
+    key          = "env/terraform_state-file"
+    region       = "us-east-1"
+    use_lockfile = true
+    encrypt      = true
+  }
+
+}
