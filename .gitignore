@@ -164,3 +164,8 @@ vite.config.ts.timestamp-*
 *.tar.gz
 *.zip
 *.rar
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup
+terraform.tfvars
