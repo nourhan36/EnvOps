@@ -164,6 +164,11 @@ vite.config.ts.timestamp-*
 *.tar.gz
 *.zip
 *.rar
+backend.tf
+.terraform.lock.hcl
+
+terraform.tfvars
+terraform.tfstate.backup
 .terraform/
 .terraform.lock.hcl
 terraform.tfstate
