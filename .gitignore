@@ -156,6 +156,7 @@ vite.config.ts.timestamp-*
 .terraform/
 *.tfstate
 *.tfstate.backup
+*_override.tf
 
 # ==========================================
 # Misc Archives
