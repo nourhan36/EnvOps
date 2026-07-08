@@ -9,7 +9,7 @@ module "vpc" {
 }
 module "eks" {
   source             = "./Modules/EKS"
-  cluster_name       = "envops-dev-cluster"
-  
+  cluster_name       = "${var.project_name}-cluster"
   private_subnet_ids = module.vpc.private_subnet_ids
+  tags               = var.tags
 }
