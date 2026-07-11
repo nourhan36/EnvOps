@@ -2,6 +2,17 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
+
+  await prisma.user.upsert({
+    where: {
+      email: "demo@envops.local",
+    },
+    update: {},
+    create: {
+      email: "demo@envops.local",
+    },
+  });
+
   await prisma.sandboxTemplate.createMany({
     data: [
       {
