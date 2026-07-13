@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: envops-backend
+  namespace: envops-system
+spec:
+  # Keep one replica for the first MVP because active PTYs are stored in memory.
+  # TODO: before scaling, add sticky sessions and the Socket.IO Redis adapter.
+  replicas: 1
+  selector:
+    matchLabels:
+      app: envops-backend
+  template:
+    metadata:
+      labels:
+        app: envops-backend
+    spec:
+      serviceAccountName: envops-backend
+      containers:
+        - name: backend
+          # TODO: replace with the image pushed by Jenkins to ECR.
+          image: REPLACE_WITH_ECR_IMAGE
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+          env:
+            - name: PORT
+              value: "3000"
+            - name: APP_ORIGINS
+              # TODO: replace with the real frontend HTTPS URL.
+              value: "http://localhost:5173"
+            - name: DATABASE_URL
+              # TODO: load from External Secrets instead of plain text.
+              valueFrom:
+                secretKeyRef:
+                  name: envops-backend-secrets
+                  key: database-url
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: envops-backend-secrets
+                  key: redis-url
+            - name: SANDBOX_POD_LABEL_KEY
+              value: "envops.io/sandbox-id"
+            - name: TERMINAL_SHELL
+              value: "/bin/sh"
+            - name: DEMO_USER_EMAIL
+              # TODO: remove after authentication is implemented.
+              value: "demo@envops.local"
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: envops-backend
+  namespace: envops-system
+spec:
+  selector:
+    app: envops-backend
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+  type: ClusterIP
+
+# TODO: add NGINX Ingress and WebSocket routing separately.
