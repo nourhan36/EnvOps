@@ -1,27 +1,38 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "private": true,
+  "description": "EnvOps backend with Role 4 terminal streaming",
+  "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "prisma:generate": "prisma generate",
+    "prisma:seed": "tsx prisma/seed.ts",
+    "demo:prepare": "tsx scripts/demo-prepare-sandbox.ts",
+    "demo:terminal": "tsx scripts/terminal-demo-client.ts",
+    "demo:cleanup": "tsx scripts/demo-cleanup-sandbox.ts",
+    "test": "echo \"No automated tests configured yet\""
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@prisma/client": "^6.19.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
     "express": "^5.2.1",
+    "node-pty": "^1.1.0",
     "prisma": "^6.19.3",
-    "redis": "^6.1.0"
+    "redis": "^6.1.0",
+    "socket.io": "^4.8.3"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^24.13.3",
-    "dotenv": "^16.6.1",
+    "socket.io-client": "^4.8.3",
     "ts-node": "^10.9.2",
     "tsx": "^4.23.0",
     "typescript": "^5.9.3"
