@@ -1,45 +1,28 @@
 import { prisma } from "../db/client";
 import { provisionSandbox } from "./orchestrator.service";
+import { NotFoundError } from "../errors/AppError";
 
-export async function createSandbox(templateId: string) {
+export async function createSandbox(templateId: string, userId: string) {
 
     const template = await prisma.sandboxTemplate.findUnique({
-        where: {
-            id: templateId
-        }
+        where: { id: templateId }
     });
 
     if (!template) {
-        throw new Error("Template not found");
-    }
-
-    const user = await prisma.user.findUnique({
-        where: {
-            email: "demo@envops.local"
-        }
-    });
-
-    if (!user) {
-        throw new Error("Demo user not found");
+        throw new NotFoundError("Template not found");
     }
 
     const expiresAt = new Date();
-
-    expiresAt.setMinutes(
-        expiresAt.getMinutes() + template.defaultTtlMinutes
-    );
+    expiresAt.setMinutes(expiresAt.getMinutes() + template.defaultTtlMinutes);
 
     const provisionResult = await provisionSandbox({
         dockerImage: template.dockerImage,
-        limits: template.defaultLimits as {
-            cpu: string;
-            memory: string;
-        }
+        limits: template.defaultLimits as { cpu: string; memory: string; }
     });
 
     const sandbox = await prisma.sandbox.create({
         data: {
-            userId: user.id,
+            userId: userId,
             templateId: template.id,
             namespace: provisionResult.namespace,
             status: provisionResult.status,
@@ -50,21 +33,10 @@ export async function createSandbox(templateId: string) {
     return sandbox;
 }
 
-export async function getAllSandboxes() {
-
-    const user = await prisma.user.findUnique({
-        where: {
-            email: "demo@envops.local"
-        }
-    });
-
-    if (!user) {
-        throw new Error("Demo user not found");
-    }
-
+export async function getAllSandboxes(userId: string) {
     return await prisma.sandbox.findMany({
         where: {
-            userId: user.id,
+            userId: userId,
             deletedAt: null
         },
         include: {
@@ -74,25 +46,13 @@ export async function getAllSandboxes() {
             createdAt: "desc"
         }
     });
-
 }
 
-export async function getSandboxById(id: string) {
-
-    const user = await prisma.user.findUnique({
-        where: {
-            email: "demo@envops.local"
-        }
-    });
-
-    if (!user) {
-        throw new Error("Demo user not found");
-    }
-
+export async function getSandboxById(id: string, userId: string) {
     const sandbox = await prisma.sandbox.findFirst({
         where: {
             id,
-            userId: user.id,
+            userId: userId,
             deletedAt: null
         },
         include: {
@@ -101,43 +61,30 @@ export async function getSandboxById(id: string) {
     });
 
     if (!sandbox) {
-        throw new Error("Sandbox not found");
+        throw new NotFoundError("Sandbox not found");
     }
 
     return sandbox;
 }
 
-export async function deleteSandbox(id: string) {
-
-    const user = await prisma.user.findUnique({
-        where: {
-            email: "demo@envops.local"
-        }
-    });
-
-    if (!user) {
-        throw new Error("Demo user not found");
-    }
-
+export async function deleteSandbox(id: string, userId: string) {
     const sandbox = await prisma.sandbox.findFirst({
         where: {
             id,
-            userId: user.id
+            userId: userId,
+            deletedAt: null
         }
     });
 
     if (!sandbox) {
-        throw new Error("Sandbox not found");
+        throw new NotFoundError("Sandbox not found");
     }
 
     return await prisma.sandbox.update({
-        where: {
-            id
-        },
+        where: { id },
         data: {
             status: "deleted",
             deletedAt: new Date()
         }
     });
-
 }
