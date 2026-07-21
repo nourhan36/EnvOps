@@ -1,6 +1,7 @@
 import * as k8s from '@kubernetes/client-node';
 import * as stream from 'stream';
 import { env } from '../config/env';
+import { SandboxStatus } from '../constants/sandbox-status';
 
 const kc = new k8s.KubeConfig();
 kc.loadFromDefault();
@@ -47,7 +48,7 @@ export interface ProvisionResult {
 export async function provisionSandbox(
     request: ProvisionRequest
 ): Promise<ProvisionResult> {
-    
+
     console.log(`Provisioning sandbox -> Image: ${request.dockerImage}, Limits: ${JSON.stringify(request.limits)}`);
 
     const namespaceName = `sandbox-${Date.now()}`;
@@ -74,9 +75,9 @@ export async function provisionSandbox(
                         command: ["/bin/sh", "-c", "sleep infinity"],
                         resources: {
                             requests: { cpu: '100m', memory: '128Mi' },
-                            limits: { 
-                                cpu: request.limits.cpu, 
-                                memory: request.limits.memory 
+                            limits: {
+                                cpu: request.limits.cpu,
+                                memory: request.limits.memory
                             }
                         },
                         securityContext: {
@@ -104,17 +105,17 @@ export async function provisionSandbox(
 
         let isReady = false;
         let attempts = 0;
-        
+
         while (!isReady && attempts < 15) {
             await new Promise(resolve => setTimeout(resolve, 1000));
-            
+
             const podResponse = await coreV1Api.readNamespacedPodStatus({
                 name: podName,
                 namespace: namespaceName
             });
-            
+
             const phase = podResponse.status?.phase || (podResponse as any).body?.status?.phase;
-            
+
             if (phase === 'Running') {
                 isReady = true;
             }
@@ -127,14 +128,14 @@ export async function provisionSandbox(
 
         return {
             namespace: namespaceName,
-            status: "running"
+            status: SandboxStatus.RUNNING
         };
 
     } catch (error) {
         console.error(`Failed to provision sandbox in ${namespaceName}:`, error);
 
         await coreV1Api.deleteNamespace({ name: namespaceName }).catch(() => console.log("Cleanup failed"));
-        
+
         throw error;
     }
 }
@@ -143,17 +144,17 @@ export async function cleanupSandbox(namespace: string): Promise<void> {
     console.log(`Executing garbage collection for namespace: ${namespace}`);
 
     try {
-        await coreV1Api.deleteNamespace({ 
-            name: namespace 
+        await coreV1Api.deleteNamespace({
+            name: namespace
         });
-        
+
         console.log(`Garbage collection triggered successfully for: ${namespace}`);
     } catch (error: any) {
         if (error.statusCode === 404) {
             console.log(`Namespace ${namespace} not found. Assuming already cleaned up.`);
             return;
         }
-        
+
         console.error(`Critical: Failed to delete namespace ${namespace}:`, error);
         throw new Error(`Garbage collection failed for ${namespace}`);
     }
@@ -162,12 +163,12 @@ export async function cleanupSandbox(namespace: string): Promise<void> {
 export async function attachTerminal(
     request: AttachTerminalRequest
 ): Promise<any> {
-    
+
     console.log(`Attaching terminal to namespace: ${request.namespace}`);
-    
-    const podName = 'sandbox-terminal'; 
+
+    const podName = 'sandbox-terminal';
     const containerName = 'sandbox-container';
-    
+
     const exec = new k8s.Exec(kc);
 
     try {
@@ -190,5 +191,20 @@ export async function attachTerminal(
     } catch (error) {
         console.error(`Critical: Failed to attach terminal for ${request.namespace}:`, error);
         throw new Error('Terminal connection to the sandbox failed.');
+    }
+}
+
+export async function deleteSandboxResources(namespace: string): Promise<void> {
+    console.log(`Executing sandbox resource deletion for namespace: ${namespace}`);
+    try {
+        await coreV1Api.deleteNamespace({ name: namespace });
+        console.log(`Successfully deleted sandbox resources (namespace & pods) for: ${namespace}`);
+    } catch (error: any) {
+        if (error.statusCode === 404) {
+            console.log(`Namespace ${namespace} not found. Assuming already deleted.`);
+            return;
+        }
+        console.error(`Critical: Failed to delete namespace ${namespace}:`, error);
+        throw new Error(`Failed to delete sandbox resources for ${namespace}`);
     }
 }
