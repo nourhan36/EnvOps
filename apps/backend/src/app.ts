@@ -4,6 +4,8 @@ import swaggerUi from "swagger-ui-express";
 
 import { env } from "./config/env";
 import { swaggerSpec } from "./config/swagger";
+import { asyncApiSpec } from "./config/asyncapi";
+import { renderSocketDocs } from "./config/socket-docs";
 
 import healthRoutes from "./routes/health.routes";
 import templateRoutes from "./routes/template.routes";
@@ -28,11 +30,25 @@ app.use(express.json());
 
 
 
+app.get("/openapi.json", (_req, res) => {
+  res.json(swaggerSpec);
+});
+
 app.use(
   "/api-docs",
   swaggerUi.serve,
-  swaggerUi.setup(swaggerSpec)
+  swaggerUi.setup(swaggerSpec, {
+    customSiteTitle: "EnvOps REST API",
+  })
 );
+
+app.get("/asyncapi.json", (_req, res) => {
+  res.json(asyncApiSpec);
+});
+
+app.get("/socket-docs", (_req, res) => {
+  res.type("html").send(renderSocketDocs());
+});
 
 
 
