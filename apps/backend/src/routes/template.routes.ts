@@ -8,30 +8,22 @@ const router = Router();
  * /api/templates:
  *   get:
  *     summary: Get all sandbox templates
- *     tags:
- *       - Templates
+ *     tags: [Templates]
  *     responses:
  *       200:
- *         description: Successfully returned sandbox templates
+ *         description: Sandbox templates returned successfully
  *         content:
  *           application/json:
  *             schema:
  *               type: array
  *               items:
- *                 type: object
- *                 properties:
- *                   id:
- *                     type: string
- *                   name:
- *                     type: string
- *                   displayName:
- *                     type: string
- *                   description:
- *                     type: string
- *                   dockerImage:
- *                     type: string
- *                   defaultTtlMinutes:
- *                     type: integer
+ *                 $ref: '#/components/schemas/SandboxTemplate'
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.get("/", getTemplates);
 
