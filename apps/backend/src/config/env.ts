@@ -59,8 +59,8 @@ export const env = {
   ]),
   kubernetesEmulatorServer:
     process.env.KUBERNETES_EMULATOR_SERVER?.trim() || "https://127.0.0.1:6500",
-  sandboxPodLabelKey:
-    process.env.SANDBOX_POD_LABEL_KEY?.trim() || "envops.io/sandbox-id",
+  sandboxPodSelector:
+    process.env.SANDBOX_POD_SELECTOR?.trim() || "app=sandbox",
   terminalShell: process.env.TERMINAL_SHELL?.trim() || "/bin/sh",
   terminalDefaultCols: readPositiveInteger("TERMINAL_DEFAULT_COLS", 100),
   terminalDefaultRows: readPositiveInteger("TERMINAL_DEFAULT_ROWS", 30),
