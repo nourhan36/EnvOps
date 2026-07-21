@@ -120,7 +120,7 @@ async function main(): Promise<void> {
           name: podName,
           namespace: sandbox.namespace,
           labels: {
-            [env.sandboxPodLabelKey]: sandbox.id,
+            app: "sandbox",
             "envops.io/managed": "true",
           },
           annotations: {
