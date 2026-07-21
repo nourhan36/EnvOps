@@ -1,0 +1,13 @@
+
+module my-lociuistarter 1.0;
+
+require {
+	type container_runtime_t;
+	type container_t;
+	class unix_stream_socket connectto;
+}
+
+#============= container_t ==============
+
+#!!!! This avc is allowed in the current policy
+allow container_t container_runtime_t:unix_stream_socket connectto;
