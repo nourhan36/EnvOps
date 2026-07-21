@@ -41,8 +41,8 @@ spec:
                 secretKeyRef:
                   name: envops-backend-secrets
                   key: redis-url
-            - name: SANDBOX_POD_LABEL_KEY
-              value: "envops.io/sandbox-id"
+            - name: SANDBOX_POD_SELECTOR
+              value: "app=sandbox"
             - name: TERMINAL_SHELL
               value: "/bin/sh"
             - name: DEMO_USER_EMAIL
