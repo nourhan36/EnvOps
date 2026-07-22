@@ -20,20 +20,6 @@ services:
     volumes:
       - redisdata:/data
 
-# docker-compose.yml
-  localstack:
-    image: localstack/localstack:latest
-    container_name: envops-localstack
-    ports:
-      - "4566:4566"
-    environment:
-      - LOCALSTACK_AUTH_TOKEN=${LOCALSTACK_AUTH_TOKEN}
-      - SERVICES=secretsmanager,iam,sts
-      - PERSISTENCE=1
-    volumes:
-      - localstack_data:/var/lib/localstack
-
 volumes:
   pgdata:
   redisdata:
-  localstack_data:
