@@ -20,21 +20,6 @@ services:
     volumes:
       - redisdata:/data
 
-# LocalStack (Floci)
-  localstack:
-    image: localstack/localstack:3
-    container_name: envops-localstack
-    restart: unless-stopped
-    ports:
-      - "4566:4566"
-    environment:
-      - SERVICES=secretsmanager
-      - DEBUG=1
-      - PERSISTENCE=1
-    volumes:
-      - localstack_data:/var/lib/localstack
-
 volumes:
   pgdata:
   redisdata:
-  localstack_data:
