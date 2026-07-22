@@ -108,7 +108,7 @@ model SandboxLog {
   @@map("sandbox_logs")
 }
 
-/// Point-in-time resource usage sample for a sandbox
+/// Point-in-time resource usage sample for a sandbox.
 /// CPU and memory are optional so partial metric samples can be stored
 model Metric {
   id          String   @id @default(uuid())
