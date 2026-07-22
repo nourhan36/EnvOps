@@ -4,12 +4,15 @@ import app from "./app";
 import { env } from "./config/env";
 import { createSocketServer } from "./sockets/socket.server";
 import { terminalService } from "./services/terminal.service";
+import { startEvictionWorker } from "./workers/eviction.worker";
+
 
 const httpServer = createServer(app);
 const io = createSocketServer(httpServer);
 
 httpServer.listen(env.port, () => {
   console.log(`HTTP and Socket.IO server is running on port ${env.port}`);
+     startEvictionWorker();
 });
 
 async function shutdown(signal: string): Promise<void> {

@@ -27,10 +27,13 @@ resource "aws_eks_cluster" "this" {
 
   vpc_config {
     subnet_ids              = var.private_subnet_ids
-    endpoint_public_access  = false
-    endpoint_private_access = true
+     endpoint_private_access = true
+    # Enable  public access to the EKS cluster to be able to access it through kubectl from outside the VPC
+    endpoint_public_access  = true
+    public_access_cidrs     = ["0.0.0.0/0"]
   }
-
+ 
+  
   depends_on = [
     aws_iam_role_policy_attachment.cluster_policy
   ]
@@ -83,8 +86,9 @@ resource "aws_eks_node_group" "private_nodes" {
     max_size     = 3
     min_size     = 1
   }
-
-  instance_types = ["t3.medium"]
+ 
+  # instance_types = ["t3.medium"] // unavaible in my aws account, so I will use c7i-flex.large instead
+  instance_types = ["c7i-flex.large"]
 
   depends_on = [
     aws_iam_role_policy_attachment.nodes_worker_policy,
