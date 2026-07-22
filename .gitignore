@@ -179,3 +179,7 @@ terraform.tfvars
 backend.tf
 dev.tfvars
 prod.tfvars
+
+
+Kubernetes/secrets-management/localstack
+Terraform/envs/floci-secrets-test
