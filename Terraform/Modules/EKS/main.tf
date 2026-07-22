@@ -36,6 +36,19 @@ resource "aws_eks_cluster" "this" {
   ]
 }
 
+# IAM OIDC provider automatically. Workloads using IRSA
+# (including External Secrets Operator) require this provider to assume roles.
+data "tls_certificate" "oidc" {
+  url = aws_eks_cluster.this.identity[0].oidc[0].issuer
+}
+
+resource "aws_iam_openid_connect_provider" "this" {
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = [data.tls_certificate.oidc.certificates[0].sha1_fingerprint]
+  url             = aws_eks_cluster.this.identity[0].oidc[0].issuer
+  tags            = var.tags
+}
+
 resource "aws_iam_role" "nodes" {
   name = "${var.cluster_name}-node-role"
   tags = var.tags
@@ -96,7 +109,7 @@ resource "aws_eks_node_group" "private_nodes" {
 resource "aws_ec2_tag" "private_subnet_cluster_tag" {
   count       = length(var.private_subnet_ids)
   resource_id = var.private_subnet_ids[count.index]
-  
-  key         = "kubernetes.io/cluster/${var.cluster_name}"
-  value       = "shared"
+
+  key   = "kubernetes.io/cluster/${var.cluster_name}"
+  value = "shared"
 }
