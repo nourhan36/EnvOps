@@ -1,23 +1,21 @@
 import { Router } from "express";
-import { getTemplates } from "../controllers/template.controller";
+import { getDashboard } from "../controllers/dashboard.controller";
 
 const router = Router();
 
 /**
  * @swagger
- * /api/templates:
+ * /api/dashboard:
  *   get:
- *     summary: Get all sandbox templates
- *     tags: [Templates]
+ *     summary: Get dashboard statistics
+ *     tags: [Dashboard]
  *     responses:
  *       200:
- *         description: Sandbox templates returned successfully
+ *         description: Dashboard metrics returned successfully
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/SandboxTemplate'
+ *               $ref: '#/components/schemas/DashboardStats'
  *       500:
  *         description: Internal server error
  *         content:
@@ -25,6 +23,6 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.get("/", getTemplates);
+router.get("/", getDashboard);
 
 export default router;
