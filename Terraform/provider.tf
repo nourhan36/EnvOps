@@ -6,8 +6,14 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 6.0"
     }
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.0"
+    }
   }
 }
 provider "aws" {
   region = var.region
 }
+
+data "aws_caller_identity" "current" {}
