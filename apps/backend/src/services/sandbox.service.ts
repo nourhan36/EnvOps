@@ -1,6 +1,7 @@
 import { prisma } from "../db/client";
-import { provisionSandbox } from "./orchestrator.service";
+import { provisionSandbox, deleteSandboxResources } from "./orchestrator.service";
 import { NotFoundError } from "../errors/AppError";
+import { SandboxStatus } from "../constants/sandbox-status";
 
 export async function createSandbox(templateId: string, userId: string) {
 
@@ -15,22 +16,46 @@ export async function createSandbox(templateId: string, userId: string) {
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + template.defaultTtlMinutes);
 
-    const provisionResult = await provisionSandbox({
-        dockerImage: template.dockerImage,
-        limits: template.defaultLimits as { cpu: string; memory: string; }
-    });
-
-    const sandbox = await prisma.sandbox.create({
+    let sandbox = await prisma.sandbox.create({
         data: {
             userId: userId,
             templateId: template.id,
-            namespace: provisionResult.namespace,
-            status: provisionResult.status,
+            namespace: `pending-${Date.now()}`,
+            status: SandboxStatus.PROVISIONING,
             expiresAt: expiresAt
+        },
+        include: {
+            template: true
         }
     });
 
-    return sandbox;
+    try {
+        const provisionResult = await provisionSandbox({
+            dockerImage: template.dockerImage,
+            limits: template.defaultLimits as { cpu: string; memory: string; }
+        });
+
+        sandbox = await prisma.sandbox.update({
+            where: { id: sandbox.id },
+            data: {
+                namespace: provisionResult.namespace,
+                status: provisionResult.status
+            },
+            include: {
+                template: true
+            }
+        });
+
+        return sandbox;
+    } catch (error) {
+        await prisma.sandbox.update({
+            where: { id: sandbox.id },
+            data: {
+                status: SandboxStatus.FAILED
+            }
+        });
+        throw error;
+    }
 }
 
 export async function getAllSandboxes(userId: string) {
@@ -80,10 +105,12 @@ export async function deleteSandbox(id: string, userId: string) {
         throw new NotFoundError("Sandbox not found");
     }
 
+    await deleteSandboxResources(sandbox.namespace);
+
     return await prisma.sandbox.update({
         where: { id },
         data: {
-            status: "deleted",
+            status: SandboxStatus.DELETED,
             deletedAt: new Date()
         }
     });

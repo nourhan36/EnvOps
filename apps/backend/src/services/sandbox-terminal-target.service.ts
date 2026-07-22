@@ -44,26 +44,11 @@ function getKubectlGlobalArgs(): string[] {
   return args;
 }
 
-function validateLabelValue(value: string): void {
-  // Kubernetes label values allow letters, digits, '.', '_' and '-'.
-  // Prisma currently generates UUID sandbox IDs, which satisfy this rule.
-  const valid = /^[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,61}[A-Za-z0-9])?$/;
-
-  if (!valid.test(value)) {
-    throw new TerminalTargetError(
-      "INVALID_PAYLOAD",
-      "The sandbox ID cannot be used as a Kubernetes label value.",
-    );
-  }
-}
-
 async function findRunningSandboxPod(
   namespace: string,
-  sandboxId: string,
 ): Promise<{ podName: string; containerName?: string }> {
-  validateLabelValue(sandboxId);
 
-  const selector = `${env.sandboxPodLabelKey}=${sandboxId}`;
+  const selector = env.sandboxPodSelector;
   const args = [
     ...getKubectlGlobalArgs(),
     "get",
@@ -170,10 +155,7 @@ export async function resolveSandboxTerminalTarget(
     );
   }
 
-  // must label every assigned Pod with:
-  //   envops.io/sandbox-id=<sandbox database ID>
-  // This lets Role 4 discover the Pod without trusting a podName sent by the browser.
-  const pod = await findRunningSandboxPod(sandbox.namespace, sandbox.id);
+  const pod = await findRunningSandboxPod(sandbox.namespace);
 
   return {
     sandboxId: sandbox.id,
