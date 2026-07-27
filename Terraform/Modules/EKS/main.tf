@@ -20,6 +20,11 @@ resource "aws_iam_role_policy_attachment" "cluster_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
   role       = aws_iam_role.cluster.name
 }
+
+data "http" "my_ip" {
+  url = "https://api.ipify.org"
+}
+
 resource "aws_eks_cluster" "this" {
   name     = var.cluster_name
   role_arn = aws_iam_role.cluster.arn
@@ -27,10 +32,12 @@ resource "aws_eks_cluster" "this" {
 
   vpc_config {
     subnet_ids              = var.private_subnet_ids
-     endpoint_private_access = true
-    # Enable  public access to the EKS cluster to be able to access it through kubectl from outside the VPC
+    endpoint_private_access = true
     endpoint_public_access  = true
-    public_access_cidrs     = ["0.0.0.0/0"]
+    public_access_cidrs = [
+      "${chomp(data.http.my_ip.response_body)}/32"
+    ]
+
   }
  
   
