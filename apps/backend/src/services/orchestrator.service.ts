@@ -150,7 +150,7 @@ export async function cleanupSandbox(namespace: string): Promise<void> {
 
         console.log(`Garbage collection triggered successfully for: ${namespace}`);
     } catch (error: any) {
-        if (error.statusCode === 404) {
+        if (error.code === 404) {
             console.log(`Namespace ${namespace} not found. Assuming already cleaned up.`);
             return;
         }
@@ -200,7 +200,7 @@ export async function deleteSandboxResources(namespace: string): Promise<void> {
         await coreV1Api.deleteNamespace({ name: namespace });
         console.log(`Successfully deleted sandbox resources (namespace & pods) for: ${namespace}`);
     } catch (error: any) {
-        if (error.statusCode === 404) {
+        if (error.code === 404) {
             console.log(`Namespace ${namespace} not found. Assuming already deleted.`);
             return;
         }
