@@ -6,10 +6,11 @@ export async function runEvictionCycle() {
 
     const expiredSandboxes = await prisma.sandbox.findMany({
         where: {
-            deletedAt: null,
-            expiresAt: {
-                lte: new Date()
-            }
+        deletedAt: null,
+        status: "running", 
+        expiresAt: {
+            lte: new Date()
+        }
         }
     });
 
