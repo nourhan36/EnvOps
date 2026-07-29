@@ -32,7 +32,7 @@ data "aws_iam_policy_document" "this" {
 }
 
 resource "aws_iam_role" "this" {
-  name               = "${var.name}-irsa"
+  name               = "${var.name}"
   assume_role_policy = data.aws_iam_policy_document.this.json
 }
 
