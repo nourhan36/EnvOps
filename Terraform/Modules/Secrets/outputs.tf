@@ -1,5 +1,9 @@
-## IAM role to annotate on the External Secrets Operator service account.
-output "eso_role_arn" {
-  description = "ARN of the IAM role granted read access to EnvOps secrets"
-  value       = aws_iam_role.eso_secrets_role.arn
+output "policy_arn" {
+  description = "ARN of the ESO Secrets Manager IAM policy."
+  value       = aws_iam_policy.eso_secrets_policy.arn
+}
+
+output "policy_name" {
+  description = "Name of the ESO Secrets Manager IAM policy."
+  value       = aws_iam_policy.eso_secrets_policy.name
 }
