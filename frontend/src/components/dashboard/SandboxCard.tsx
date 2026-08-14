@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Clock, Play, Square, Trash2 } from 'lucide-react';
-import type { Sandbox } from '@/types';
+import { Clock, Container, Loader2, Terminal, Trash2 } from 'lucide-react';
+import type { Sandbox, SandboxStatus } from '@/types';
 
 interface SandboxCardProps {
   sandbox: Sandbox;
-  onReclaim: (id: string) => void;
-  onTerminate: (id: string) => void;
+  onConnect: (id: string) => void;
+  onDelete: (id: string) => void;
+  isDeleting?: boolean;
 }
 
 function formatTTL(expiresAt: string): string {
@@ -21,14 +22,18 @@ function formatTTL(expiresAt: string): string {
   return `${seconds}s`;
 }
 
-const statusStyles = {
-  active: 'bg-status-active/15 text-status-active border-status-active/30',
-  idle: 'bg-gray-500/15 text-status-idle border-gray-500/30',
+const statusStyles: Record<SandboxStatus, string> = {
+  running: 'bg-status-active/15 text-status-active border-status-active/30',
   provisioning: 'bg-status-warning/15 text-status-warning border-status-warning/30',
-  terminated: 'bg-status-danger/15 text-status-danger border-status-danger/30',
+  stopped: 'bg-gray-500/15 text-status-idle border-gray-500/30',
+  failed: 'bg-status-danger/15 text-status-danger border-status-danger/30',
+  expired: 'bg-status-danger/15 text-status-danger border-status-danger/30',
+  deleted: 'bg-gray-500/15 text-gray-500 border-gray-500/30',
 };
 
-export default function SandboxCard({ sandbox, onReclaim, onTerminate }: SandboxCardProps) {
+const connectable = new Set<SandboxStatus>(['running', 'provisioning']);
+
+export default function SandboxCard({ sandbox, onConnect, onDelete, isDeleting }: SandboxCardProps) {
   const [ttl, setTtl] = useState(() => formatTTL(sandbox.expiresAt));
 
   useEffect(() => {
@@ -38,12 +43,15 @@ export default function SandboxCard({ sandbox, onReclaim, onTerminate }: Sandbox
     return () => clearInterval(interval);
   }, [sandbox.expiresAt]);
 
+  const canConnect = connectable.has(sandbox.status);
+  const isBusy = sandbox.status === 'provisioning' || isDeleting;
+
   return (
     <article className="group rounded-xl border border-border bg-surface-raised p-5 transition-colors hover:border-accent/40 hover:bg-surface-overlay">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
-          <h3 className="font-semibold text-white">{sandbox.name}</h3>
-          <p className="mt-1 font-mono text-xs text-gray-500">{sandbox.imageType}</p>
+          <h3 className="font-semibold text-white">{sandbox.template.displayName}</h3>
+          <p className="mt-1 font-mono text-xs text-gray-500">{sandbox.template.dockerImage}</p>
         </div>
         <span
           className={`rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${statusStyles[sandbox.status]}`}
@@ -52,36 +60,43 @@ export default function SandboxCard({ sandbox, onReclaim, onTerminate }: Sandbox
         </span>
       </div>
 
-      <div className="mb-5 flex items-center gap-2 text-sm text-gray-400">
-        <Clock className="h-4 w-4 text-accent-hover" />
-        <span>TTL:</span>
-        <span className="font-mono text-status-active">{ttl}</span>
+      <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-400">
+        <span className="inline-flex items-center gap-2">
+          <Container className="h-4 w-4 text-accent-hover" />
+          <span className="font-mono text-xs">{sandbox.namespace}</span>
+        </span>
+        <span className="inline-flex items-center gap-2">
+          <Clock className="h-4 w-4 text-accent-hover" />
+          <span>
+            TTL: <span className="font-mono text-status-active">{ttl}</span>
+          </span>
+        </span>
       </div>
 
       <div className="flex gap-2">
         <button
           type="button"
-          onClick={() => onReclaim(sandbox.id)}
-          disabled={sandbox.status === 'terminated'}
+          onClick={() => onConnect(sandbox.id)}
+          disabled={!canConnect}
           className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-accent/50 hover:bg-accent-muted disabled:cursor-not-allowed disabled:opacity-40"
         >
-          <Play className="h-3.5 w-3.5" />
-          Reclaim
+          {isBusy ? (
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Provisioning…
+            </>
+          ) : (
+            <>
+              <Terminal className="h-3.5 w-3.5" />
+              Connect
+            </>
+          )}
         </button>
         <button
           type="button"
-          onClick={() => onTerminate(sandbox.id)}
-          disabled={sandbox.status === 'terminated'}
-          className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-status-danger/30 bg-status-danger/10 px-3 py-2 text-sm font-medium text-status-danger transition-colors hover:bg-status-danger/20 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <Square className="h-3.5 w-3.5" />
-          Terminate
-        </button>
-        <button
-          type="button"
-          onClick={() => onTerminate(sandbox.id)}
-          disabled={sandbox.status === 'terminated'}
-          className="inline-flex items-center justify-center rounded-lg border border-border px-3 py-2 text-gray-400 transition-colors hover:border-status-danger/30 hover:text-status-danger disabled:cursor-not-allowed disabled:opacity-40"
+          onClick={() => onDelete(sandbox.id)}
+          disabled={sandbox.status === 'deleted' || isDeleting}
+          className="inline-flex items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-gray-400 transition-colors hover:border-status-danger/30 hover:text-status-danger disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="Delete sandbox"
         >
           <Trash2 className="h-3.5 w-3.5" />

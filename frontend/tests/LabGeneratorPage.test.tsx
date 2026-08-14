@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import LabGeneratorPage from '@/pages/LabGeneratorPage';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
 describe('LabGeneratorPage', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -27,7 +29,7 @@ describe('LabGeneratorPage', () => {
     await user.click(screen.getByRole('button', { name: 'Generate Lab' }));
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://localhost:3001/api/labs/generate',
+      `${API_URL}/api/labs/generate`,
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({ prompt: 'Create a Kubernetes lab' }),

@@ -59,6 +59,15 @@ export const env = {
   ]),
   kubernetesEmulatorServer:
     process.env.KUBERNETES_EMULATOR_SERVER?.trim() || "https://127.0.0.1:6500",
+  kubernetesEmulatorAwsRegion:
+    process.env.KUBERNETES_EMULATOR_AWS_REGION?.trim() || "us-east-1",
+  kubernetesEmulatorAwsClusterName:
+    process.env.KUBERNETES_EMULATOR_AWS_CLUSTER_NAME?.trim() ||
+    "envops-dev-cluster",
+  kubernetesProvisionTimeoutMs: readPositiveInteger(
+    "KUBERNETES_PROVISION_TIMEOUT_MS",
+    120_000,
+  ),
   sandboxPodSelector:
     process.env.SANDBOX_POD_SELECTOR?.trim() || "app=sandbox",
   terminalShell: process.env.TERMINAL_SHELL?.trim() || "/bin/sh",

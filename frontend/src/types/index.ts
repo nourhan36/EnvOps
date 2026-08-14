@@ -1,13 +1,47 @@
-export type SandboxStatus = 'active' | 'idle' | 'provisioning' | 'terminated';
+export type SandboxStatus =
+  | 'provisioning'
+  | 'running'
+  | 'failed'
+  | 'stopped'
+  | 'expired'
+  | 'deleted';
+
+export interface SandboxTemplate {
+  id: string;
+  name: string;
+  displayName: string;
+  description?: string | null;
+  dockerImage: string;
+  defaultLimits: Record<string, string>;
+  defaultTtlMinutes: number;
+  isActive: boolean;
+  createdAt: string;
+}
 
 export interface Sandbox {
   id: string;
-  name: string;
-  imageType: string;
+  userId: string;
+  templateId: string;
+  template: SandboxTemplate;
+  namespace: string;
   status: SandboxStatus;
-  expiresAt: string;
+  resourceLimits?: Record<string, string> | null;
   createdAt: string;
-  region?: string;
+  expiresAt: string;
+  deletedAt?: string | null;
+}
+
+export interface SandboxMutationResponse {
+  message: string;
+  sandbox: Sandbox;
+}
+
+export interface DashboardStats {
+  totalSandboxes: number;
+  provisioningSandboxes: number;
+  runningSandboxes: number;
+  failedSandboxes: number;
+  totalTemplates: number;
 }
 
 export interface AIInsight {

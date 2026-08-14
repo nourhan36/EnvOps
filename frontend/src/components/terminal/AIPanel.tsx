@@ -34,19 +34,19 @@ export default function AIPanel({ socket, isOpen, onToggle }: AIPanelProps) {
       setInsights((prev) => [insight, ...prev].slice(0, 50));
     };
 
-    const handleOutput = (data: string) => {
-      const sanitized = data.replace(/\x1b\[[0-9;]*m/g, '').trim();
+    const handleOutput = (payload: { data: string }) => {
+      const sanitized = payload.data.replace(/\x1b\[[0-9;]*m/g, '').trim();
       if (sanitized) {
         setStreamLog((prev) => [...prev.slice(-99), sanitized]);
       }
     };
 
     socket.on('ai-insight', handleInsight);
-    socket.on('terminal-output', handleOutput);
+    socket.on('terminal:output', handleOutput);
 
     return () => {
       socket.off('ai-insight', handleInsight);
-      socket.off('terminal-output', handleOutput);
+      socket.off('terminal:output', handleOutput);
     };
   }, [socket]);
 
