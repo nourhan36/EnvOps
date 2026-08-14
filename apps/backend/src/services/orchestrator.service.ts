@@ -3,24 +3,81 @@ import * as stream from 'stream';
 import { env } from '../config/env';
 import { SandboxStatus } from '../constants/sandbox-status';
 
-const kc = new k8s.KubeConfig();
-kc.loadFromDefault();
+function buildEmulatorKubeConfig(): k8s.KubeConfig {
+    const kc = new k8s.KubeConfig();
+    const clusterName = 'envops-emulator';
+    const userName = 'envops-emulator';
 
-const currentCluster = kc.getCurrentCluster();
-
-if (env.kubernetesTarget === 'emulator' && currentCluster) {
-    const localEmulatorCluster: k8s.Cluster = {
-        ...currentCluster,
+    kc.addCluster({
+        name: clusterName,
         server: env.kubernetesEmulatorServer,
         skipTLSVerify: true,
-    };
+    });
 
-    kc.clusters = kc.clusters.filter(c => c.name !== currentCluster.name);
-    kc.clusters.push(localEmulatorCluster);
+    // The Floci EKS emulator authenticates with the same k8s-aws-v1 bearer
+    // tokens the real EKS API does. Reuse the exec/authProvider user from the
+    // default kubeconfig so requests carry a valid token.
+    const defaultKc = new k8s.KubeConfig();
+    try {
+        defaultKc.loadFromDefault();
+    } catch {
+        // No default kubeconfig available - fall through to the AWS CLI fallback.
+    }
+
+    const execUser = defaultKc
+        .getUsers()
+        .find((user) => user.exec || user.authProvider?.config?.exec);
+
+    if (execUser?.exec) {
+        kc.addUser({ name: userName, exec: execUser.exec });
+    } else if (execUser?.authProvider) {
+        kc.addUser({ name: userName, authProvider: execUser.authProvider });
+    } else {
+        kc.addUser({
+            name: userName,
+            exec: {
+                apiVersion: 'client.authentication.k8s.io/v1beta1',
+                command: 'aws',
+                args: [
+                    'eks',
+                    'get-token',
+                    '--region',
+                    env.kubernetesEmulatorAwsRegion,
+                    '--cluster-name',
+                    env.kubernetesEmulatorAwsClusterName,
+                    '--output',
+                    'json',
+                ],
+            },
+        });
+    }
+
+    kc.addContext({
+        name: clusterName,
+        cluster: clusterName,
+        user: userName,
+        namespace: 'default',
+    });
+    kc.setCurrentContext(clusterName);
+
+    return kc;
 }
 
-if (!currentCluster) {
-    throw new Error('No Kubernetes cluster is configured. Set up kubeconfig or use the emulator target.');
+let kc: k8s.KubeConfig;
+
+if (env.kubernetesTarget === 'emulator') {
+    kc = buildEmulatorKubeConfig();
+} else {
+    kc = new k8s.KubeConfig();
+    try {
+        kc.loadFromDefault();
+    } catch {
+        throw new Error('No Kubernetes kubeconfig was found. Set up kubeconfig or use the emulator target.');
+    }
+
+    if (!kc.getCurrentCluster()) {
+        throw new Error('No Kubernetes cluster is configured. Set up kubeconfig or use the emulator target.');
+    }
 }
 
 const coreV1Api = kc.makeApiClient(k8s.CoreV1Api);
@@ -104,10 +161,12 @@ export async function provisionSandbox(
         });
 
         let isReady = false;
+        const pollIntervalMs = 2_000;
+        const maxAttempts = Math.ceil(env.kubernetesProvisionTimeoutMs / pollIntervalMs);
         let attempts = 0;
 
-        while (!isReady && attempts < 15) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
+        while (!isReady && attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
 
             const podResponse = await coreV1Api.readNamespacedPodStatus({
                 name: podName,

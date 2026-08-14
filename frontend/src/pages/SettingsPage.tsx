@@ -1,42 +1,77 @@
+import { useEffect, useState } from 'react';
 import { Bell, Key, Server, User } from 'lucide-react';
+import { api } from '@/lib/api';
+import type { DashboardStats } from '@/types';
 
-const settingsSections = [
-  {
-    title: 'Profile',
-    icon: User,
-    items: [
-      { label: 'Display Name', value: 'DevOps Engineer' },
-      { label: 'Email', value: 'engineer@envops.ai' },
-    ],
-  },
-  {
-    title: 'API & Connections',
-    icon: Key,
-    items: [
-      { label: 'API URL', value: import.meta.env.VITE_API_URL || 'http://localhost:3001' },
-      { label: 'Socket URL', value: import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001' },
-    ],
-  },
-  {
-    title: 'Warm-Pool',
-    icon: Server,
-    items: [
-      { label: 'Pool Size', value: '5 containers' },
-      { label: 'Default TTL', value: '2 hours' },
-      { label: 'Region', value: 'us-east-1' },
-    ],
-  },
-  {
-    title: 'Notifications',
-    icon: Bell,
-    items: [
-      { label: 'TTL Warnings', value: 'Enabled' },
-      { label: 'Lab Ready Alerts', value: 'Enabled' },
-    ],
-  },
-];
+const EMPTY_STATS: DashboardStats = {
+  totalSandboxes: 0,
+  provisioningSandboxes: 0,
+  runningSandboxes: 0,
+  failedSandboxes: 0,
+  totalTemplates: 0,
+};
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
 
 export default function SettingsPage() {
+  const [health, setHealth] = useState<'checking' | 'ok' | 'offline'>('checking');
+  const [stats, setStats] = useState<DashboardStats>(EMPTY_STATS);
+
+  useEffect(() => {
+    api
+      .getHealth()
+      .then(() => setHealth('ok'))
+      .catch(() => setHealth('offline'));
+
+    api
+      .getDashboardStats()
+      .then(setStats)
+      .catch(() => setStats(EMPTY_STATS));
+  }, []);
+
+  const settingsSections = [
+    {
+      title: 'Profile',
+      icon: User,
+      items: [
+        { label: 'Display Name', value: 'DevOps Engineer' },
+        { label: 'Email', value: 'engineer@envops.ai' },
+      ],
+    },
+    {
+      title: 'API & Connections',
+      icon: Key,
+      items: [
+        { label: 'API URL', value: API_URL },
+        { label: 'Socket URL', value: SOCKET_URL },
+        {
+          label: 'Backend Health',
+          value:
+            health === 'ok' ? 'Connected' : health === 'offline' ? 'Offline' : 'Checking…',
+        },
+      ],
+    },
+    {
+      title: 'Warm-Pool',
+      icon: Server,
+      items: [
+        { label: 'Total Sandboxes', value: String(stats.totalSandboxes) },
+        { label: 'Running', value: String(stats.runningSandboxes) },
+        { label: 'Provisioning', value: String(stats.provisioningSandboxes) },
+        { label: 'Failed', value: String(stats.failedSandboxes) },
+      ],
+    },
+    {
+      title: 'Notifications',
+      icon: Bell,
+      items: [
+        { label: 'TTL Warnings', value: 'Enabled' },
+        { label: 'Lab Ready Alerts', value: 'Enabled' },
+      ],
+    },
+  ];
+
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <header className="border-b border-border px-6 py-5">
@@ -59,7 +94,15 @@ export default function SettingsPage() {
                 {items.map(({ label, value }) => (
                   <div key={label} className="flex items-center justify-between text-sm">
                     <dt className="text-gray-500">{label}</dt>
-                    <dd className="font-mono text-gray-300">{value}</dd>
+                    <dd
+                      className={`font-mono text-gray-300 ${
+                        label === 'Backend Health' && health === 'offline'
+                          ? 'text-status-danger'
+                          : ''
+                      }`}
+                    >
+                      {value}
+                    </dd>
                   </div>
                 ))}
               </dl>
