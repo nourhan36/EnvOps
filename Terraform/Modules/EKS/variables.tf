@@ -1,3 +1,14 @@
+variable "region" {
+  description = "AWS region where the EKS cluster is provisioned"
+  type        = string
+}
+
+variable "create_oidc_provider" {
+  description = "Create the IAM OIDC provider used for IRSA. Set to false when the backing AWS emulator does not support IAM OIDC providers (e.g. Floci)."
+  type        = bool
+  default     = true
+}
+
 variable "cluster_name" {
   description = "Name of the EKS cluster (used as a prefix for IAM roles and node group names)"
   type        = string
