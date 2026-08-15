@@ -1,5 +1,7 @@
 import type {
   DashboardStats,
+  ExplainErrorRequest,
+  ExplainErrorResponse,
   Sandbox,
   SandboxMutationResponse,
   SandboxTemplate,
@@ -55,4 +57,9 @@ export const api = {
   deleteSandbox: (id: string) =>
     request<SandboxMutationResponse>(`/api/sandboxes/${id}`, { method: 'DELETE' }),
   getDashboardStats: () => request<DashboardStats>('/api/dashboard'),
+  explainError: (sandboxId: string, body?: ExplainErrorRequest) =>
+    request<ExplainErrorResponse>(`/api/sandboxes/${sandboxId}/explain-error`, {
+      method: 'POST',
+      body: JSON.stringify(body ?? {}),
+    }),
 };
