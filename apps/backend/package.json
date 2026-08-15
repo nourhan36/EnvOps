@@ -13,7 +13,8 @@
     "demo:prepare": "tsx scripts/demo-prepare-sandbox.ts",
     "demo:terminal": "tsx scripts/terminal-demo-client.ts",
     "demo:cleanup": "tsx scripts/demo-cleanup-sandbox.ts",
-    "test": "echo \"No automated tests configured yet\""
+    "test": "vitest run",
+    "llm:smoke": "tsx scripts/llm-smoke-test.ts"
   },
   "keywords": [],
   "author": "",
@@ -41,6 +42,7 @@
     "socket.io-client": "^4.8.3",
     "ts-node": "^10.9.2",
     "tsx": "^4.23.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
   }
 }

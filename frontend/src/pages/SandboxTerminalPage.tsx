@@ -127,6 +127,8 @@ export default function SandboxTerminalPage() {
           socket={socket}
           isOpen={aiPanelOpen}
           onToggle={() => setAiPanelOpen((prev) => !prev)}
+          sandboxId={sandboxId}
+          template={sandbox?.template}
         />
       </div>
     </div>

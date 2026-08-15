@@ -52,6 +52,36 @@ export interface AIInsight {
   command?: string;
 }
 
+export interface AIErrorDetected {
+  sandboxId: string;
+  command: string;
+  stderrPreview: string;
+  signature?: string;
+  detectedAt: string;
+}
+
+export interface ExplainErrorRequest {
+  command?: string;
+  stderr?: string;
+  environmentType?: string;
+}
+
+export interface ExplainErrorAvailable {
+  status: 'available';
+  explanation: string;
+  suggestedFix: string;
+  model: string;
+  generatedAt: string;
+}
+
+export interface ExplainErrorUnavailable {
+  status: 'unavailable';
+  reason: string;
+  retryable: boolean;
+}
+
+export type ExplainErrorResponse = ExplainErrorAvailable | ExplainErrorUnavailable;
+
 export interface LabGenerationRequest {
   prompt: string;
   difficulty?: 'beginner' | 'intermediate' | 'advanced';

@@ -78,6 +78,21 @@ export const env = {
     65_536,
   ),
 
+  // AI Error Interceptor (DeepSeek via the ITI gateway).
+  llmBaseUrl:
+    process.env.LLM_BASE_URL?.trim() || "http://apiaccess.iti.net.eg/api/v1",
+  llmModelId: process.env.LLM_MODEL_ID?.trim() || "deepseek.v3.2",
+  llmApiKey: process.env.SBG_API_KEY?.trim() || "",
+  llmTimeoutMs: readPositiveInteger("LLM_TIMEOUT_MS", 30_000),
+  llmMaxRetries: readPositiveInteger("LLM_MAX_RETRIES", 1),
+  llmMaxStderrChars: readPositiveInteger("LLM_MAX_STDERR_CHARS", 8_000),
+  aiErrorCooldownMs: readPositiveInteger("AI_ERROR_COOLDOWN_MS", 5_000),
+  aiErrorDebounceMs: readPositiveInteger("AI_ERROR_DEBOUNCE_MS", 500),
+  aiErrorMaxCapturedChars: readPositiveInteger(
+    "AI_ERROR_MAX_CAPTURED_CHARS",
+    12_000,
+  ),
+
   // remove this once real authentication is connected.
   demoUserEmail:
     process.env.DEMO_USER_EMAIL?.trim() || "demo@envops.local",

@@ -75,6 +75,14 @@ export const asyncApiSpec = {
       },
       description: "Reports validation, authorization, or terminal failures.",
     },
+    aiErrorDetected: {
+      address: "ai:error-detected",
+      messages: {
+        aiErrorDetected: { $ref: "#/components/messages/AIErrorDetected" },
+      },
+      description:
+        "The AI Error Interceptor detected a failed command in the terminal stream; the panel can then request an explanation via the REST explain-error endpoint.",
+    },
   },
   operations: {
     receiveTerminalStart: {
@@ -116,6 +124,11 @@ export const asyncApiSpec = {
       action: "send",
       channel: { $ref: "#/channels/terminalError" },
       summary: "Send terminal:error to the frontend",
+    },
+    sendAIErrorDetected: {
+      action: "send",
+      channel: { $ref: "#/channels/aiErrorDetected" },
+      summary: "Send ai:error-detected to the frontend",
     },
   },
   components: {
@@ -168,6 +181,12 @@ export const asyncApiSpec = {
         name: "terminal:error",
         title: "Terminal error",
         payload: { $ref: "#/components/schemas/TerminalErrorPayload" },
+      },
+      AIErrorDetected: {
+        name: "ai:error-detected",
+        title: "AI error detected",
+        summary: "A failed command was detected in the terminal stream.",
+        payload: { $ref: "#/components/schemas/AIErrorDetectedPayload" },
       },
     },
     schemas: {
@@ -263,6 +282,17 @@ export const asyncApiSpec = {
             ],
           },
           message: { type: "string" },
+        },
+      },
+      AIErrorDetectedPayload: {
+        type: "object",
+        required: ["sandboxId", "command", "stderrPreview", "detectedAt"],
+        properties: {
+          sandboxId: { type: "string", format: "uuid" },
+          command: { type: "string", example: "npm install" },
+          stderrPreview: { type: "string", example: "npm ERR! code ERESOLVE" },
+          signature: { type: "string", example: "npm error" },
+          detectedAt: { type: "string", format: "date-time" },
         },
       },
     },
