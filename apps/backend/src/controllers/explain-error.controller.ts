@@ -20,8 +20,17 @@ export async function explainError(req: Request<{ id: string }>, res: Response) 
 
   if (!command && !stderr) {
     const captured = errorCaptureRegistry.getLastFailure(sandbox.id);
-    command = captured?.command ?? "";
-    stderr = captured?.stderr ?? "";
+
+    if (!captured) {
+      return res.json({
+        status: "unavailable",
+        reason: "no_failure_captured",
+        retryable: false,
+      });
+    }
+
+    command = captured.command;
+    stderr = captured.stderr;
   }
 
   const result = await errorInterceptorService.explain({

@@ -54,7 +54,7 @@ locals {
   # placeholder URL so downstream IRSA resources still plan cleanly.
   oidc_issuer_url = coalesce(
     try(aws_eks_cluster.this.identity[0].oidc[0].issuer, null),
-    "https://oidc.eks.${var.region}.amazonaws.com/id/${replace(aws_eks_cluster.this.name, "/[^a-zA-Z0-9-]/", "-")}"
+    "https://oidc.eks.${var.region}.amazonaws.com/id/${regexreplace(aws_eks_cluster.this.name, "[^a-zA-Z0-9-]", "-")}"
   )
 }
 
