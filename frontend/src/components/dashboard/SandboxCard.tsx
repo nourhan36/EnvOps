@@ -31,7 +31,7 @@ const statusStyles: Record<SandboxStatus, string> = {
   deleted: 'bg-gray-500/15 text-gray-500 border-gray-500/30',
 };
 
-const connectable = new Set<SandboxStatus>(['running', 'provisioning']);
+const connectable = new Set<SandboxStatus>(['running']);
 
 export default function SandboxCard({ sandbox, onConnect, onDelete, isDeleting }: SandboxCardProps) {
   const [ttl, setTtl] = useState(() => formatTTL(sandbox.expiresAt));
@@ -77,13 +77,13 @@ export default function SandboxCard({ sandbox, onConnect, onDelete, isDeleting }
         <button
           type="button"
           onClick={() => onConnect(sandbox.id)}
-          disabled={!canConnect}
+          disabled={!canConnect || isBusy}
           className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-accent/50 hover:bg-accent-muted disabled:cursor-not-allowed disabled:opacity-40"
         >
           {isBusy ? (
             <>
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              Provisioning…
+              {isDeleting ? 'Deleting…' : 'Provisioning…'}
             </>
           ) : (
             <>

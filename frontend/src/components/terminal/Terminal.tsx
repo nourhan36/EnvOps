@@ -35,6 +35,11 @@ interface TerminalError {
   message: string;
 }
 
+interface TerminalAck {
+  ok: boolean;
+  error?: TerminalError;
+}
+
 export interface TerminalProps {
   socket: Socket | null;
   sandboxId: string;
@@ -84,6 +89,10 @@ export default function Terminal({ socket, sandboxId, className, onOutput }: Ter
         sandboxId,
         cols: term.cols,
         rows: term.rows,
+      }, (response: TerminalAck) => {
+        if (response && !response.ok) {
+          startedRef.current = false;
+        }
       });
     };
 
