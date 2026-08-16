@@ -71,15 +71,42 @@ describe('SandboxCard', () => {
     expect(screen.getByRole('button', { name: 'Delete sandbox' })).toBeDisabled();
   });
 
-  it('shows a provisioning state instead of the connect action', () => {
+  it('disables connect while a sandbox is provisioning', async () => {
+    vi.useRealTimers();
+    const user = userEvent.setup();
+    const onConnect = vi.fn();
     render(
       <SandboxCard
         sandbox={{ ...sandbox, status: 'provisioning' }}
-        onConnect={vi.fn()}
+        onConnect={onConnect}
         onDelete={vi.fn()}
       />,
     );
 
-    expect(screen.getByText('Provisioning…')).toBeInTheDocument();
+    const connect = screen.getByRole('button', { name: 'Provisioning…' });
+    expect(connect).toBeDisabled();
+
+    await user.click(connect);
+    expect(onConnect).not.toHaveBeenCalled();
+  });
+
+  it('labels the busy state as Deleting and disables connect while a delete is in progress', () => {
+    render(
+      <SandboxCard
+        sandbox={{ ...sandbox, status: 'running' }}
+        onConnect={vi.fn()}
+        onDelete={vi.fn()}
+        isDeleting
+      />,
+    );
+
+    expect(screen.getByText('Deleting…')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Deleting…' })).toBeDisabled();
+  });
+
+  it('keeps connect enabled for a running sandbox that is not deleting', () => {
+    render(<SandboxCard sandbox={sandbox} onConnect={vi.fn()} onDelete={vi.fn()} />);
+
+    expect(screen.getByRole('button', { name: 'Connect' })).toBeEnabled();
   });
 });
