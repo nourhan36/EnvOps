@@ -142,10 +142,10 @@ export default function Terminal({ socket, sandboxId, className, onOutput }: Ter
     socket?.on('terminal:error', handleError);
     socket?.on('terminal:exit', handleExit);
 
+    socket?.on('connect', startTerminal);
+
     if (socket?.connected) {
       startTerminal();
-    } else {
-      socket?.once('connect', startTerminal);
     }
 
     const resizeObserver = new ResizeObserver(() => {
