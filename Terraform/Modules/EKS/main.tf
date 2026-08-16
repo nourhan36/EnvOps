@@ -39,8 +39,8 @@ resource "aws_eks_cluster" "this" {
     ]
 
   }
- 
-  
+
+
   depends_on = [
     aws_iam_role_policy_attachment.cluster_policy
   ]
@@ -120,7 +120,7 @@ resource "aws_eks_node_group" "private_nodes" {
     max_size     = 3
     min_size     = 1
   }
- 
+
   # instance_types = ["t3.medium"] // unavaible in my aws account, so I will use c7i-flex.large instead
   instance_types = ["c7i-flex.large"]
 
