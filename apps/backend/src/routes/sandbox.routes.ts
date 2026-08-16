@@ -5,12 +5,14 @@ import {
   getSandbox,
   deleteSandbox,
 } from "../controllers/sandbox.controller";
+import { explainError } from "../controllers/explain-error.controller";
 import { validate } from "../middlewares/validate.middleware";
 import { requireAuth } from "../middlewares/auth.middleware";
 import {
   createSandboxSchema,
   sandboxIdParamSchema,
 } from "../schema/sandbox.schema";
+import { explainErrorSchema } from "../schema/explain-error.schema";
 
 const router = Router();
 
@@ -166,5 +168,92 @@ router.post("/", validate(createSandboxSchema), createSandbox);
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.delete("/:id", validate(sandboxIdParamSchema), deleteSandbox);
+
+/**
+ * @swagger
+ * /api/sandboxes/{id}/explain-error:
+ *   post:
+ *     summary: Explain a terminal failure using the AI Error Interceptor
+ *     description: >
+ *       Sends the failing command, its stderr output, and the sandbox
+ *       environment to the DeepSeek model and returns a Markdown diagnosis
+ *       plus a suggested fix. When `command` and `stderr` are omitted, the
+ *       last failure captured by the terminal stream for this sandbox is
+ *       used instead.
+ *     tags: [Sandboxes]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: Sandbox database ID
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               command:
+ *                 type: string
+ *                 description: The command that failed
+ *               stderr:
+ *                 type: string
+ *                 description: The captured error output
+ *               environmentType:
+ *                 type: string
+ *                 description: Optional environment label; derived from the template when absent
+ *     responses:
+ *       200:
+ *         description: Explanation result (or a graceful unavailable state when the model call fails)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               oneOf:
+ *                 - type: object
+ *                   properties:
+ *                     status:
+ *                       type: string
+ *                       enum: [available]
+ *                     explanation:
+ *                       type: string
+ *                     suggestedFix:
+ *                       type: string
+ *                     model:
+ *                       type: string
+ *                     generatedAt:
+ *                       type: string
+ *                       format: date-time
+ *                 - type: object
+ *                   properties:
+ *                     status:
+ *                       type: string
+ *                       enum: [unavailable]
+ *                     reason:
+ *                       type: string
+ *                     retryable:
+ *                       type: boolean
+ *       400:
+ *         description: Invalid sandbox ID or mismatched command/stderr fields
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: The demo/authenticated user could not be resolved
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: Sandbox not found or not owned by the current user
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.post("/:id/explain-error", validate(explainErrorSchema), explainError);
 
 export default router;
