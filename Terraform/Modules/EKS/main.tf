@@ -20,6 +20,11 @@ resource "aws_iam_role_policy_attachment" "cluster_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
   role       = aws_iam_role.cluster.name
 }
+
+data "http" "my_ip" {
+  url = "https://api.ipify.org"
+}
+
 resource "aws_eks_cluster" "this" {
   name     = var.cluster_name
   role_arn = aws_iam_role.cluster.arn
@@ -27,10 +32,15 @@ resource "aws_eks_cluster" "this" {
 
   vpc_config {
     subnet_ids              = var.private_subnet_ids
-    endpoint_public_access  = false
     endpoint_private_access = true
-  }
+    endpoint_public_access  = true
+    public_access_cidrs = [
+      "${chomp(data.http.my_ip.response_body)}/32"
+    ]
 
+  }
+ 
+  
   depends_on = [
     aws_iam_role_policy_attachment.cluster_policy
   ]
@@ -110,8 +120,9 @@ resource "aws_eks_node_group" "private_nodes" {
     max_size     = 3
     min_size     = 1
   }
-
-  instance_types = ["t3.medium"]
+ 
+  # instance_types = ["t3.medium"] // unavaible in my aws account, so I will use c7i-flex.large instead
+  instance_types = ["c7i-flex.large"]
 
   depends_on = [
     aws_iam_role_policy_attachment.nodes_worker_policy,
