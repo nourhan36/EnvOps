@@ -1,6 +1,6 @@
 data "aws_iam_policy_document" "this" {
   statement {
-    effect  = "Allow"
+    effect = "Allow"
 
     actions = [
       "sts:AssumeRoleWithWebIdentity"
@@ -32,7 +32,7 @@ data "aws_iam_policy_document" "this" {
 }
 
 resource "aws_iam_role" "this" {
-  name               = "${var.name}"
+  name               = var.name
   assume_role_policy = data.aws_iam_policy_document.this.json
 }
 

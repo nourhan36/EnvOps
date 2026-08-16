@@ -16,18 +16,18 @@ module "eks" {
 }
 
 module "secrets" {
-  source            = "./Modules/Secrets"
-  region            = var.region
-  account_id        = data.aws_caller_identity.current.account_id
+  source      = "./Modules/Secrets"
+  region      = var.region
+  account_id  = data.aws_caller_identity.current.account_id
   policy_name = "envops-eso-secrets-policy"
 }
 
 module "irsa" {
-  source = "./Modules/IRSA"
-  name = "envops-eso-secrets-role"
-  policy_arn = module.secrets.policy_arn
+  source            = "./Modules/IRSA"
+  name              = "envops-eso-secrets-role"
+  policy_arn        = module.secrets.policy_arn
   oidc_provider_arn = module.eks.oidc_provider_arn
   oidc_issuer       = replace(module.eks.oidc_provider_url, "https://", "")
-  service_account = "eso-secrets-sa"
-  namespace = "envops-core"
+  service_account   = "eso-secrets-sa"
+  namespace         = "envops-core"
 }
