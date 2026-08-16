@@ -13,7 +13,8 @@
     "demo:prepare": "tsx scripts/demo-prepare-sandbox.ts",
     "demo:terminal": "tsx scripts/terminal-demo-client.ts",
     "demo:cleanup": "tsx scripts/demo-cleanup-sandbox.ts",
-    "test": "echo \"No automated tests configured yet\""
+    "test": "vitest run",
+    "llm:smoke": "tsx scripts/llm-smoke-test.ts"
   },
   "keywords": [],
   "author": "",
@@ -25,7 +26,6 @@
     "dotenv": "^16.6.1",
     "express": "^5.2.1",
     "node-pty": "^1.1.0",
-    "node-cron": "^4.6.0",
     "prisma": "^6.19.3",
     "redis": "^6.1.0",
     "socket.io": "^4.8.3",
@@ -40,10 +40,9 @@
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.8",
     "socket.io-client": "^4.8.3",
-    "@types/node-cron": "^3.0.11",
-    "dotenv": "^16.6.1",
     "ts-node": "^10.9.2",
     "tsx": "^4.23.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
   }
 }

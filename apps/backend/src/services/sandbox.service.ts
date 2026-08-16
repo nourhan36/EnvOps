@@ -112,6 +112,9 @@ export async function deleteSandbox(id: string, userId: string) {
         data: {
             status: SandboxStatus.DELETED,
             deletedAt: new Date()
+        },
+        include: {
+            template: true
         }
     });
 }

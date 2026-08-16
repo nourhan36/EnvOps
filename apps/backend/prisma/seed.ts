@@ -1,15 +1,17 @@
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
+const demoUserEmail = process.env.DEMO_USER_EMAIL?.trim() || 'demo@envops.local';
 
 async function main() {
 
   await prisma.user.upsert({
     where: {
-      email: "demo@envops.local",
+      email: demoUserEmail,
     },
     update: {},
     create: {
-      email: "demo@envops.local",
+      email: demoUserEmail,
     },
   });
 

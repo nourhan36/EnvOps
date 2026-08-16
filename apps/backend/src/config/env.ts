@@ -59,6 +59,15 @@ export const env = {
   ]),
   kubernetesEmulatorServer:
     process.env.KUBERNETES_EMULATOR_SERVER?.trim() || "https://127.0.0.1:6500",
+  kubernetesEmulatorAwsRegion:
+    process.env.KUBERNETES_EMULATOR_AWS_REGION?.trim() || "us-east-1",
+  kubernetesEmulatorAwsClusterName:
+    process.env.KUBERNETES_EMULATOR_AWS_CLUSTER_NAME?.trim() ||
+    "envops-dev-cluster",
+  kubernetesProvisionTimeoutMs: readPositiveInteger(
+    "KUBERNETES_PROVISION_TIMEOUT_MS",
+    120_000,
+  ),
   sandboxPodSelector:
     process.env.SANDBOX_POD_SELECTOR?.trim() || "app=sandbox",
   terminalShell: process.env.TERMINAL_SHELL?.trim() || "/bin/sh",
@@ -67,6 +76,21 @@ export const env = {
   terminalMaxInputBytes: readPositiveInteger(
     "TERMINAL_MAX_INPUT_BYTES",
     65_536,
+  ),
+
+  // AI Error Interceptor (DeepSeek via the ITI gateway).
+  llmBaseUrl:
+    process.env.LLM_BASE_URL?.trim() || "http://apiaccess.iti.net.eg/api/v1",
+  llmModelId: process.env.LLM_MODEL_ID?.trim() || "deepseek.v3.2",
+  llmApiKey: process.env.SBG_API_KEY?.trim() || "",
+  llmTimeoutMs: readPositiveInteger("LLM_TIMEOUT_MS", 30_000),
+  llmMaxRetries: readPositiveInteger("LLM_MAX_RETRIES", 1),
+  llmMaxStderrChars: readPositiveInteger("LLM_MAX_STDERR_CHARS", 8_000),
+  aiErrorCooldownMs: readPositiveInteger("AI_ERROR_COOLDOWN_MS", 5_000),
+  aiErrorDebounceMs: readPositiveInteger("AI_ERROR_DEBOUNCE_MS", 500),
+  aiErrorMaxCapturedChars: readPositiveInteger(
+    "AI_ERROR_MAX_CAPTURED_CHARS",
+    12_000,
   ),
 
   // remove this once real authentication is connected.

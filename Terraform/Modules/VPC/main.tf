@@ -100,6 +100,12 @@ resource "aws_route_table" "private" {
     nat_gateway_id = aws_nat_gateway.this.id
   }
 
+  # Floci's DescribeRouteTables omits the NAT gateway target, which would otherwise
+  # cause a perpetual ReplaceRoute diff (unsupported by the emulator).
+  lifecycle {
+    ignore_changes = [route]
+  }
+
   tags = merge(var.tags, {
     Name = "${var.name}-private-rt"
   })
