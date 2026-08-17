@@ -16,6 +16,8 @@ const sandbox: Sandbox = {
     dockerImage: 'hashicorp/terraform:1.7',
     defaultLimits: { cpu: '250m', memory: '256Mi' },
     defaultTtlMinutes: 120,
+    privileged: false,
+    command: null,
     isActive: true,
     createdAt: '2026-07-21T12:00:00.000Z',
   },
@@ -42,6 +44,18 @@ describe('SandboxCard', () => {
     expect(screen.getByText('hashicorp/terraform:1.7')).toBeInTheDocument();
     expect(screen.getByText('running')).toBeInTheDocument();
     expect(screen.getByText('30m 0s')).toBeInTheDocument();
+  });
+
+  it('shows per-sandbox resource limits when present', () => {
+    render(
+      <SandboxCard
+        sandbox={{ ...sandbox, resourceLimits: { cpu: '1', memory: '1Gi' } }}
+        onConnect={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('1 CPU · 1Gi')).toBeInTheDocument();
   });
 
   it('sends the sandbox id through connect and delete actions', async () => {

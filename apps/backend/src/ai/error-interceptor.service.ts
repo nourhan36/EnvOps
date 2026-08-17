@@ -6,10 +6,15 @@ import { parseExplanation } from "./llm.response";
 export interface ExplainTemplate {
   displayName: string;
   dockerImage: string;
+  privileged?: boolean;
 }
 
 export interface ExplainSandbox {
   template: ExplainTemplate;
+  /** Per-sandbox resource overrides, when the user customized them. */
+  resourceLimits?: { cpu?: string; memory?: string } | null;
+  /** Requested lifetime in minutes, when the user customized it. */
+  ttlMinutes?: number | null;
 }
 
 export interface ExplainErrorInput {
@@ -53,12 +58,28 @@ export interface RetrievedContext {
 
 export class TemplateContextRetriever implements ContextRetriever {
   async retrieve(input: ExplainErrorInput): Promise<RetrievedContext> {
-    const { displayName, dockerImage } = input.sandbox.template;
+    const { displayName, dockerImage, privileged } = input.sandbox.template;
+    const { resourceLimits, ttlMinutes } = input.sandbox;
+
+    const details: string[] = [`image ${dockerImage}`];
+    if (privileged) {
+      details.push("privileged access");
+    }
+    if (resourceLimits?.cpu || resourceLimits?.memory) {
+      details.push(
+        `resources cpu=${resourceLimits.cpu ?? "?"} memory=${resourceLimits.memory ?? "?"}`,
+      );
+    }
+    if (ttlMinutes) {
+      details.push(`ttl ${ttlMinutes}m`);
+    }
 
     return {
       environmentType:
         input.environmentType?.trim() ||
-        (displayName ? `${displayName} (image ${dockerImage})` : "Unknown sandbox template"),
+        (displayName
+          ? `${displayName} (${details.join(", ")})`
+          : `Unknown sandbox (${details.join(", ")})`),
       // RAG extension point: inject vectorized doc snippets + sandbox
       // metadata here (e.g. recently run commands, installed packages).
       ragContext: undefined,

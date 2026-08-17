@@ -20,6 +20,8 @@ import { explainError } from "./explain-error.controller";
 
 const sandbox = {
   id: "sandbox-42",
+  resourceLimits: { cpu: "1", memory: "1Gi" },
+  ttlMinutes: 90,
   template: {
     id: "template-1",
     displayName: "Terraform Lab",
@@ -84,7 +86,11 @@ describe("explainError controller", () => {
     await explainError(makeReq(), res);
 
     expect(errorInterceptorService.explain).toHaveBeenCalledWith({
-      sandbox: { template: sandbox.template },
+      sandbox: {
+        template: sandbox.template,
+        resourceLimits: sandbox.resourceLimits,
+        ttlMinutes: sandbox.ttlMinutes,
+      },
       command: "npm install",
       stderr: "npm ERR! code ERESOLVE",
       environmentType: undefined,
@@ -106,7 +112,11 @@ describe("explainError controller", () => {
     );
 
     expect(errorInterceptorService.explain).toHaveBeenCalledWith({
-      sandbox: { template: sandbox.template },
+      sandbox: {
+        template: sandbox.template,
+        resourceLimits: sandbox.resourceLimits,
+        ttlMinutes: sandbox.ttlMinutes,
+      },
       command: "kubectl describe pod",
       stderr: "Error: NotFound",
       environmentType: "kubernetes",

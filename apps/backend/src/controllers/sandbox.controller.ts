@@ -20,9 +20,12 @@ export async function getSandbox(req: Request<{ id: string }>, res: Response) {
 
 export async function createSandbox(req: Request, res: Response) {
     const userId = (req as any).user.id;
-    const { templateId } = req.body;
-    
-    const sandbox = await createSandboxService(templateId, userId);
+    const { templateId, resources, ttlMinutes } = req.body;
+
+    const sandbox = await createSandboxService(templateId, userId, {
+        resources,
+        ttlMinutes,
+    });
 
     return res.status(201).json({
         message: "Sandbox created successfully",

@@ -3,6 +3,7 @@ import type {
   ExplainErrorRequest,
   ExplainErrorResponse,
   Sandbox,
+  SandboxCreateOptions,
   SandboxMutationResponse,
   SandboxTemplate,
 } from '@/types';
@@ -49,10 +50,10 @@ export const api = {
   getTemplates: () => request<SandboxTemplate[]>('/api/templates'),
   getSandboxes: () => request<Sandbox[]>('/api/sandboxes'),
   getSandbox: (id: string) => request<Sandbox>(`/api/sandboxes/${id}`),
-  createSandbox: (templateId: string) =>
+  createSandbox: (templateId: string, options?: SandboxCreateOptions) =>
     request<SandboxMutationResponse>('/api/sandboxes', {
       method: 'POST',
-      body: JSON.stringify({ templateId }),
+      body: JSON.stringify({ templateId, ...options }),
     }),
   deleteSandbox: (id: string) =>
     request<SandboxMutationResponse>(`/api/sandboxes/${id}`, { method: 'DELETE' }),
