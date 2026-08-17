@@ -16,8 +16,11 @@ The system is decoupled into three primary execution layers: React client, Node.
 ## Core Features
 
 * **Dynamic Kubernetes Provisioning:** Automated generation of Namespaces, Pods, and Network Policies via the Kubernetes Node SDK.
-* **Hardened Security Contexts:** Sandboxes run non-root, drop all Linux capabilities (`ALL`), and enforce strict network isolation to prevent lateral movement.
+* **Hardened-by-Default Security Contexts:** Sandboxes run non-root and drop all Linux capabilities (`ALL`); trusted runtime templates (e.g. Docker-in-Docker, k3s) opt into a privileged context only where the image requires it.
+* **TTL-based Sandbox Lifecycle:** Every sandbox carries an expiration (TTL). Expired sandboxes are marked `expired`, their Kubernetes resources are evicted on a scheduled sweep, and the terminal Connect action is disabled.
+* **Customizable Sandboxes:** Per-sandbox CPU/memory and TTL overrides (clamped to platform bounds) across curated templates — Ubuntu, Rich Linux, Docker-in-Docker, and a single-node k3s cluster.
 * **Real-time Web Terminal:** Low-latency standard I/O streaming using WebSocket streams, `node-pty`, and `xterm.js`.
+* **AI Error Interpreter:** Terminal stderr is scanned for common failure signatures and explained by DeepSeek (via the ITI gateway) with suggested fixes.
 * **Infrastructure as Code (IaC):** 100% codified AWS networking (VPC, NAT) and Kubernetes (EKS) infrastructure using Terraform.
 * **Local Cloud Emulation:** Full local testing capabilities utilizing Docker and Floci (AWS Emulator), completely eliminating cloud costs during development.
 
@@ -25,7 +28,7 @@ The system is decoupled into three primary execution layers: React client, Node.
 
 | Component | Technology |
 | --- | --- |
-| **Frontend** | React 18, TypeScript, Vite, Tailwind CSS, xterm.js, framer-motion |
+| **Frontend** | React 18, TypeScript, Vite, Tailwind CSS, xterm.js, lucide-react, react-markdown |
 | **Backend** | Node.js, Express, Socket.IO, Prisma ORM, PostgreSQL, Redis |
 | **Infrastructure** | Terraform, AWS (EKS, VPC, IAM), Kubernetes Client SDK |
 | **Local Dev** | Docker Compose, Floci (AWS Emulator) |
@@ -73,11 +76,16 @@ cd apps/backend
 npm install
 cp .env.example .env
 npx prisma migrate dev
+npm run prisma:seed
 npm run dev
 
 ```
 
 Set `KUBERNETES_TARGET=emulator` for Floci or `KUBERNETES_TARGET=aws` when the backend should talk to a real EKS kubeconfig.
+
+> **Note:** `prisma migrate dev` auto-seeds only when new migrations are applied. Running `npm run prisma:seed` explicitly ensures the demo user and all sandbox templates (Ubuntu, Rich Linux, Docker, Kubernetes) exist — without them the dashboard's *New Sandbox* flow has no templates to offer.
+
+`EVICTION_INTERVAL_MS` (default `60000`) controls how often the backend sweeps for expired sandboxes, marking them `expired` and removing their Kubernetes resources.
 
 ### 3. Launch the Frontend
 
