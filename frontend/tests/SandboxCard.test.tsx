@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import SandboxCard from '@/components/dashboard/SandboxCard';
@@ -16,6 +16,8 @@ const sandbox: Sandbox = {
     dockerImage: 'hashicorp/terraform:1.7',
     defaultLimits: { cpu: '250m', memory: '256Mi' },
     defaultTtlMinutes: 120,
+    privileged: false,
+    command: null,
     isActive: true,
     createdAt: '2026-07-21T12:00:00.000Z',
   },
@@ -44,12 +46,30 @@ describe('SandboxCard', () => {
     expect(screen.getByText('30m 0s')).toBeInTheDocument();
   });
 
+  it('shows per-sandbox resource limits when present', () => {
+    render(
+      <SandboxCard
+        sandbox={{ ...sandbox, resourceLimits: { cpu: '1', memory: '1Gi' } }}
+        onConnect={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('1 CPU · 1Gi')).toBeInTheDocument();
+  });
+
   it('sends the sandbox id through connect and delete actions', async () => {
     vi.useRealTimers();
     const onConnect = vi.fn();
     const onDelete = vi.fn();
     const user = userEvent.setup();
-    render(<SandboxCard sandbox={sandbox} onConnect={onConnect} onDelete={onDelete} />);
+    render(
+      <SandboxCard
+        sandbox={{ ...sandbox, expiresAt: '2099-07-21T14:30:00.000Z' }}
+        onConnect={onConnect}
+        onDelete={onDelete}
+      />,
+    );
 
     await user.click(screen.getByRole('button', { name: 'Connect' }));
     await user.click(screen.getByRole('button', { name: 'Delete sandbox' }));
@@ -77,7 +97,7 @@ describe('SandboxCard', () => {
     const onConnect = vi.fn();
     render(
       <SandboxCard
-        sandbox={{ ...sandbox, status: 'provisioning' }}
+        sandbox={{ ...sandbox, status: 'provisioning', expiresAt: '2099-07-21T14:30:00.000Z' }}
         onConnect={onConnect}
         onDelete={vi.fn()}
       />,
@@ -108,5 +128,30 @@ describe('SandboxCard', () => {
     render(<SandboxCard sandbox={sandbox} onConnect={vi.fn()} onDelete={vi.fn()} />);
 
     expect(screen.getByRole('button', { name: 'Connect' })).toBeEnabled();
+  });
+
+  it('shows an expired badge and removes the connect button once the TTL has elapsed', () => {
+    const expired = { ...sandbox, expiresAt: '2026-07-21T13:30:00.000Z' };
+    render(<SandboxCard sandbox={expired} onConnect={vi.fn()} onDelete={vi.fn()} />);
+
+    expect(screen.getByText('expired')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Connect' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Delete sandbox' })).toBeEnabled();
+    expect(screen.getByText('Expired')).toBeInTheDocument();
+  });
+
+  it('flips a running sandbox to expired and removes connect when the countdown hits zero', () => {
+    render(<SandboxCard sandbox={sandbox} onConnect={vi.fn()} onDelete={vi.fn()} />);
+
+    expect(screen.getByText('running')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Connect' })).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(31 * 60 * 1000);
+    });
+
+    expect(screen.getByText('expired')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Connect' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Delete sandbox' })).toBeEnabled();
   });
 });

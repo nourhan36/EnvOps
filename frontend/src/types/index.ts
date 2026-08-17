@@ -14,8 +14,21 @@ export interface SandboxTemplate {
   dockerImage: string;
   defaultLimits: Record<string, string>;
   defaultTtlMinutes: number;
+  privileged: boolean;
+  command?: string[] | null;
+  args?: string[] | null;
   isActive: boolean;
   createdAt: string;
+}
+
+export interface SandboxResourceLimits {
+  cpu: string;
+  memory: string;
+}
+
+export interface SandboxCreateOptions {
+  resources?: Partial<SandboxResourceLimits>;
+  ttlMinutes?: number;
 }
 
 export interface Sandbox {
@@ -26,6 +39,7 @@ export interface Sandbox {
   namespace: string;
   status: SandboxStatus;
   resourceLimits?: Record<string, string> | null;
+  ttlMinutes?: number | null;
   createdAt: string;
   expiresAt: string;
   deletedAt?: string | null;
