@@ -24,6 +24,8 @@ const template: SandboxTemplate = {
   dockerImage: 'ubuntu:22.04',
   defaultLimits: { cpu: '250m', memory: '256Mi' },
   defaultTtlMinutes: 120,
+  privileged: false,
+  command: null,
   isActive: true,
   createdAt: '2026-07-21T12:00:00.000Z',
 };
@@ -72,7 +74,7 @@ describe('DashboardPage', () => {
     expect(screen.getByText('Total Sandboxes')).toBeInTheDocument();
   });
 
-  it('creates a sandbox from a template and refreshes the list', async () => {
+  it('creates a sandbox from a template with customizable resources and refreshes the list', async () => {
     const user = userEvent.setup();
     vi.mocked(api.getSandboxes).mockResolvedValue([]);
     vi.mocked(api.getDashboardStats).mockResolvedValue(stats);
@@ -88,7 +90,20 @@ describe('DashboardPage', () => {
 
     await user.click(screen.getByRole('button', { name: /Empty Ubuntu Sandbox/ }));
 
-    expect(api.createSandbox).toHaveBeenCalledWith('template-1');
+    expect(screen.getByRole('heading', { name: 'Customize Sandbox' })).toBeInTheDocument();
+    expect(screen.getByLabelText('CPU limit')).toHaveValue('250m');
+    expect(screen.getByLabelText('Memory limit')).toHaveValue('256Mi');
+    expect(screen.getByLabelText('Sandbox lifetime')).toHaveValue('120');
+
+    await user.selectOptions(screen.getByLabelText('CPU limit'), '1');
+    await user.selectOptions(screen.getByLabelText('Memory limit'), '1Gi');
+    await user.selectOptions(screen.getByLabelText('Sandbox lifetime'), '90');
+    await user.click(screen.getByRole('button', { name: 'Create Sandbox' }));
+
+    expect(api.createSandbox).toHaveBeenCalledWith('template-1', {
+      resources: { cpu: '1', memory: '1Gi' },
+      ttlMinutes: 90,
+    });
   });
 
   it('deletes a sandbox when the delete action is triggered', async () => {

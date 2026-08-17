@@ -76,6 +76,26 @@ const options: swaggerJsdoc.Options = {
             dockerImage: { type: "string", example: "ubuntu:22.04" },
             defaultLimits: { $ref: "#/components/schemas/ResourceLimits" },
             defaultTtlMinutes: { type: "integer", example: 60 },
+            privileged: {
+              type: "boolean",
+              example: false,
+              description:
+                "Relaxes the hardened security context (root + privileged). Only enabled on trusted runtime templates such as Docker-in-Docker or k3s.",
+            },
+            command: {
+              type: "array",
+              items: { type: "string" },
+              nullable: true,
+              description:
+                "Optional pod command that replaces the default 'sleep infinity'.",
+            },
+            args: {
+              type: "array",
+              items: { type: "string" },
+              nullable: true,
+              description:
+                "Optional pod args passed to the image entrypoint (preserves ENTRYPOINT semantics).",
+            },
             isActive: { type: "boolean", example: true },
             createdAt: { type: "string", format: "date-time" },
           },
@@ -115,6 +135,13 @@ const options: swaggerJsdoc.Options = {
               allOf: [{ $ref: "#/components/schemas/ResourceLimits" }],
               nullable: true,
             },
+            ttlMinutes: {
+              type: "integer",
+              nullable: true,
+              example: 120,
+              description:
+                "Requested lifetime in minutes; null when the template default was used.",
+            },
             createdAt: { type: "string", format: "date-time" },
             expiresAt: { type: "string", format: "date-time" },
             deletedAt: {
@@ -133,6 +160,29 @@ const options: swaggerJsdoc.Options = {
               type: "string",
               format: "uuid",
               example: "31884bc3-86db-4687-8ee7-40abd578dafb",
+            },
+            resources: {
+              type: "object",
+              properties: {
+                cpu: {
+                  type: "string",
+                  example: "500m",
+                  description:
+                    "Kubernetes CPU quantity. Clamped to the platform bounds.",
+                },
+                memory: {
+                  type: "string",
+                  example: "512Mi",
+                  description:
+                    "Kubernetes memory quantity. Clamped to the platform bounds.",
+                },
+              },
+            },
+            ttlMinutes: {
+              type: "integer",
+              example: 120,
+              description:
+                "Sandbox lifetime in minutes. Clamped to the platform bounds; defaults to the template TTL when omitted.",
             },
           },
         },

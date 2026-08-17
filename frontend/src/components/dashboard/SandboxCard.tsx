@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Clock, Container, Loader2, Terminal, Trash2 } from 'lucide-react';
+import { Clock, Container, Gauge, Loader2, Terminal, Trash2 } from 'lucide-react';
 import type { Sandbox, SandboxStatus } from '@/types';
 
 interface SandboxCardProps {
@@ -67,6 +67,14 @@ export default function SandboxCard({ sandbox, onConnect, onDelete, isDeleting }
           <Container className="h-4 w-4 text-accent-hover" />
           <span className="font-mono text-xs">{sandbox.namespace}</span>
         </span>
+        {sandbox.resourceLimits && (
+          <span className="inline-flex items-center gap-2">
+            <Gauge className="h-4 w-4 text-accent-hover" />
+            <span className="font-mono text-xs">
+              {sandbox.resourceLimits.cpu} CPU · {sandbox.resourceLimits.memory}
+            </span>
+          </span>
+        )}
         <span className="inline-flex items-center gap-2">
           <Clock className="h-4 w-4 text-accent-hover" />
           <span>

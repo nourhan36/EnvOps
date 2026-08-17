@@ -54,6 +54,15 @@ model SandboxTemplate {
   defaultLimits     Json      @map("default_limits")
   /// Default sandbox lifetime in minutes before expiration
   defaultTtlMinutes Int       @default(60) @map("default_ttl_minutes")
+  /// Marks images that must run as root with privileged access (e.g. Docker-in-Docker, k3s).
+  /// Relaxes the hardened security context - use only for trusted templates.
+  privileged        Boolean   @default(false)
+  /// Optional pod command (JSON array) that overrides the default "sleep infinity".
+  /// Required by runtime images such as docker:dind and rancher/k3s.
+  command           Json?
+  /// Optional pod args (JSON array) passed to the image entrypoint.
+  /// Preserves image ENTRYPOINT semantics (e.g. rancher/k3s expects ["server", ...]).
+  args              Json?
   /// Allows templates to be disabled without deleting historical references
   isActive          Boolean   @default(true) @map("is_active")
   createdAt         DateTime  @default(now()) @map("created_at")
@@ -79,6 +88,8 @@ model Sandbox {
   status         String          @default("provisioning")
   /// Per-sandbox overrides for resource limits, when different from the template
   resourceLimits Json?           @map("resource_limits")
+  /// Requested sandbox lifetime in minutes; null means the template default was used
+  ttlMinutes     Int?            @map("ttl_minutes")
   createdAt      DateTime        @default(now()) @map("created_at")
   /// Time when the sandbox should be considered expired.
   expiresAt      DateTime        @map("expires_at")
