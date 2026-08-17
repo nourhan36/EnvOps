@@ -68,6 +68,7 @@ export const env = {
     "KUBERNETES_PROVISION_TIMEOUT_MS",
     120_000,
   ),
+  evictionIntervalMs: readPositiveInteger("EVICTION_INTERVAL_MS", 60_000),
   sandboxPodSelector:
     process.env.SANDBOX_POD_SELECTOR?.trim() || "app=sandbox",
   terminalShell: process.env.TERMINAL_SHELL?.trim() || "/bin/sh",
