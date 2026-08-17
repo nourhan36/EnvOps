@@ -43,8 +43,10 @@ export default function SandboxCard({ sandbox, onConnect, onDelete, isDeleting }
     return () => clearInterval(interval);
   }, [sandbox.expiresAt]);
 
-  const canConnect = connectable.has(sandbox.status);
-  const isBusy = sandbox.status === 'provisioning' || isDeleting;
+  const isExpired = new Date(sandbox.expiresAt).getTime() <= Date.now();
+  const effectiveStatus: SandboxStatus = isExpired ? 'expired' : sandbox.status;
+  const canConnect = connectable.has(effectiveStatus);
+  const isBusy = effectiveStatus === 'provisioning' || isDeleting;
 
   return (
     <article className="group rounded-xl border border-border bg-surface-raised p-5 transition-colors hover:border-accent/40 hover:bg-surface-overlay">
@@ -54,9 +56,9 @@ export default function SandboxCard({ sandbox, onConnect, onDelete, isDeleting }
           <p className="mt-1 font-mono text-xs text-gray-500">{sandbox.template.dockerImage}</p>
         </div>
         <span
-          className={`rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${statusStyles[sandbox.status]}`}
+          className={`rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${statusStyles[effectiveStatus]}`}
         >
-          {sandbox.status}
+          {effectiveStatus}
         </span>
       </div>
 
@@ -74,24 +76,26 @@ export default function SandboxCard({ sandbox, onConnect, onDelete, isDeleting }
       </div>
 
       <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => onConnect(sandbox.id)}
-          disabled={!canConnect || isBusy}
-          className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-accent/50 hover:bg-accent-muted disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {isBusy ? (
-            <>
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              {isDeleting ? 'Deleting…' : 'Provisioning…'}
-            </>
-          ) : (
-            <>
-              <Terminal className="h-3.5 w-3.5" />
-              Connect
-            </>
-          )}
-        </button>
+        {!isExpired && (
+          <button
+            type="button"
+            onClick={() => onConnect(sandbox.id)}
+            disabled={!canConnect || isBusy}
+            className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-accent/50 hover:bg-accent-muted disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {isBusy ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                {isDeleting ? 'Deleting…' : 'Provisioning…'}
+              </>
+            ) : (
+              <>
+                <Terminal className="h-3.5 w-3.5" />
+                Connect
+              </>
+            )}
+          </button>
+        )}
         <button
           type="button"
           onClick={() => onDelete(sandbox.id)}

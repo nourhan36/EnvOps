@@ -36,7 +36,7 @@ const sandbox: Sandbox = {
   namespace: 'envops-sandbox',
   status: 'running',
   createdAt: '2026-07-21T12:00:00.000Z',
-  expiresAt: '2026-07-21T14:30:00.000Z',
+  expiresAt: '2099-07-21T14:30:00.000Z',
 };
 
 const stats: DashboardStats = {
