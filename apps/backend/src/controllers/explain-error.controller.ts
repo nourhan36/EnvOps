@@ -34,7 +34,11 @@ export async function explainError(req: Request<{ id: string }>, res: Response) 
   }
 
   const result = await errorInterceptorService.explain({
-    sandbox: { template: sandbox.template },
+    sandbox: {
+      template: sandbox.template,
+      resourceLimits: sandbox.resourceLimits as { cpu?: string; memory?: string } | null,
+      ttlMinutes: sandbox.ttlMinutes,
+    },
     command: command ?? "",
     stderr: stderr ?? "",
     environmentType: body.environmentType,

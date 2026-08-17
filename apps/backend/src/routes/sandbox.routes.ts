@@ -91,7 +91,11 @@ router.get("/:id", validate(sandboxIdParamSchema), getSandbox);
  * /api/sandboxes:
  *   post:
  *     summary: Create and provision a sandbox
- *     description: Creates the database record, Kubernetes Namespace, Service, and Pod, then waits for the Pod to reach Running.
+ *     description: >
+ *       Creates the database record, Kubernetes Namespace, Service, and Pod, then
+ *       waits for the Pod to reach Running. Optional `resources` (CPU/memory) and
+ *       `ttlMinutes` overrides are clamped to platform bounds; the image,
+ *       privileged flag, and pod command always come from the template.
  *     tags: [Sandboxes]
  *     requestBody:
  *       required: true

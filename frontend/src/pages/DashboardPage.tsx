@@ -62,7 +62,9 @@ export default function DashboardPage() {
     }
   };
 
-  const runningCount = sandboxes.filter((s) => s.status === 'running').length;
+  const runningCount = sandboxes.filter(
+    (s) => s.status === 'running' && new Date(s.expiresAt).getTime() > Date.now(),
+  ).length;
 
   const statCards = [
     { label: 'Total Sandboxes', value: stats.totalSandboxes, color: 'text-white' },

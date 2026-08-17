@@ -88,6 +88,12 @@ export interface ProvisionRequest {
         cpu: string;
         memory: string;
     };
+    /** Relaxes the security context (root + privileged) for runtime images like Docker-in-Docker or k3s. */
+    privileged?: boolean;
+    /** Optional pod command that replaces the default "sleep infinity" (e.g. to start dockerd). */
+    command?: string[];
+    /** Optional pod args passed to the image entrypoint (e.g. k3s server args). */
+    args?: string[];
 }
 
 export interface AttachTerminalRequest {
@@ -102,11 +108,38 @@ export interface ProvisionResult {
     status: string;
 }
 
+/** @internal exported for testing */
+export function buildSecurityContext(privileged: boolean) {
+    if (privileged) {
+        // Trusted runtime templates only. Docker-in-Docker and k3s require root
+        // and privileged access (device cgroups, mounts). This intentionally
+        // bypasses the hardened sandbox context - never enable it on arbitrary
+        // or user-controlled images.
+        return {
+            runAsUser: 0,
+            runAsNonRoot: false,
+            privileged: true,
+            allowPrivilegeEscalation: true,
+        };
+    }
+
+    // Hardened default: non-root, no privilege escalation, no capabilities.
+    return {
+        runAsNonRoot: true,
+        runAsUser: 1000,
+        allowPrivilegeEscalation: false,
+        capabilities: { drop: ['ALL'] }
+    };
+}
+
 export async function provisionSandbox(
     request: ProvisionRequest
 ): Promise<ProvisionResult> {
 
-    console.log(`Provisioning sandbox -> Image: ${request.dockerImage}, Limits: ${JSON.stringify(request.limits)}`);
+    const privileged = request.privileged === true;
+    const command = request.command ?? ["/bin/sh", "-c", "sleep infinity"];
+
+    console.log(`Provisioning sandbox -> Image: ${request.dockerImage}, Limits: ${JSON.stringify(request.limits)}, Privileged: ${privileged}`);
 
     const namespaceName = `sandbox-${Date.now()}`;
     const podName = 'sandbox-terminal';
@@ -129,7 +162,8 @@ export async function provisionSandbox(
                     containers: [{
                         name: 'sandbox-container',
                         image: request.dockerImage,
-                        command: ["/bin/sh", "-c", "sleep infinity"],
+                        command: command,
+                        ...(request.args ? { args: request.args } : {}),
                         resources: {
                             requests: { cpu: '100m', memory: '128Mi' },
                             limits: {
@@ -137,12 +171,7 @@ export async function provisionSandbox(
                                 memory: request.limits.memory
                             }
                         },
-                        securityContext: {
-                            runAsNonRoot: true,
-                            runAsUser: 1000,
-                            allowPrivilegeEscalation: false,
-                            capabilities: { drop: ['ALL'] }
-                        }
+                        securityContext: buildSecurityContext(privileged)
                     }],
                     restartPolicy: 'Never'
                 }
