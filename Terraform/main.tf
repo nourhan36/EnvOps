@@ -28,9 +28,17 @@ module "irsa" {
   policy_arn = module.iam.eso_secrets_policy_arn
 
   oidc_provider_arn = module.eks.oidc_provider_arn
-  oidc_issuer = module.eks.oidc_provider_url
+  oidc_issuer       = module.eks.oidc_provider_url
   service_account = "eso-secrets-sa"
   namespace       = "envops-core"
+}
+
+module "secrets" {
+  source = "./Modules/Secrets"
+  
+  namespace            = "envops-core"
+  service_account_name = "eso-secrets-sa"
+  irsa_role_arn        = module.irsa.role_arn
 }
 
 module "efs_csi_irsa" {
