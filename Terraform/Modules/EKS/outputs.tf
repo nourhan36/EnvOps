@@ -22,3 +22,8 @@ output "oidc_provider_url" {
   description = "OIDC issuer URL without the HTTPS scheme, for IAM trust-policy conditions"
   value       = trimprefix(aws_eks_cluster.this.identity[0].oidc[0].issuer, "https://")
 }
+
+output "cluster_security_group_id" {
+  description = "Security group ID used by the EKS cluster and worker nodes"
+  value       = aws_eks_cluster.this.vpc_config[0].cluster_security_group_id
+}
