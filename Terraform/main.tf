@@ -14,12 +14,7 @@ module "eks" {
   tags               = var.tags
 }
 
-module "secrets" {
-  source            = "./Modules/Secrets"
-  region            = var.region
-  account_id        = data.aws_caller_identity.current.account_id
-  policy_name = "envops-eso-secrets-policy"
-}
+
 
 module "irsa" {
   source = "./Modules/IRSA"
@@ -29,6 +24,13 @@ module "irsa" {
   oidc_issuer = module.eks.oidc_provider_url
   service_account = "eso-secrets-sa"
   namespace = "envops-core"
+}
+
+module "secrets" {
+  source            = "./Modules/Secrets"
+  region            = var.region
+  account_id        = data.aws_caller_identity.current.account_id
+  policy_name = "envops-eso-secrets-policy"
 }
 
 module "efs_csi_irsa" {
