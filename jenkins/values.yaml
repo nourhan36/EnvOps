@@ -4,16 +4,16 @@ persistence:
   size: 20Gi
 
 controller:
+
   ingress:
     enabled: true
-    ingressClassName: alb
+    ingressClassName: nginx
     annotations:
-      kubernetes.io/ingress.class: alb
-      alb.ingress.kubernetes.io/scheme: internet-facing
-      alb.ingress.kubernetes.io/target-type: ip
-      alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
-      alb.ingress.kubernetes.io/healthcheck-path: /login
-      alb.ingress.kubernetes.io/success-codes: "200-399"
+      nginx.ingress.kubernetes.io/proxy-body-size: "0"
+      nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+      nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    path: /
+    pathType: Prefix
     jenkinsUrlProtocol: "http"
 
   resources:
@@ -61,12 +61,14 @@ controller:
                 name: "eks-cluster"
                 namespace: "cicd"
                 serverUrl: "https://kubernetes.default.svc"
-                jenkinsUrl: "http://k8s-cicd-jenkins-2a437fc38e-1500124528.us-east-1.elb.amazonaws.com" 
+                jenkinsUrl: "http://NGINX-LOAD-BALANCER-DNS"
+
                 webSocket: true
 
                 templates:
                   - name: "default-agent"
                     label: "jenkins-agent"
+
                     serviceAccount: "jenkins-agent-sa"
 
                     workspaceVolume:
