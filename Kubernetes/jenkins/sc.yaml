@@ -1,0 +1,11 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: efs-sc
+provisioner: efs.csi.aws.com
+parameters:
+  provisioningMode: efs-ap
+  fileSystemId: fs-0dde03fcaa85228f5 #need to change from fixed value to dynamic one (enhancement)
+  directoryPerms: "700"
+reclaimPolicy: Retain
+volumeBindingMode: Immediate
