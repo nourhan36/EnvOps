@@ -2,7 +2,6 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
   Terminal,
-  FlaskConical,
   Settings,
   Boxes,
 } from 'lucide-react';
@@ -10,7 +9,6 @@ import {
 const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/sandbox', label: 'Sandbox Terminal', icon: Terminal },
-  { to: '/lab-generator', label: 'Lab Generator', icon: FlaskConical },
   { to: '/settings', label: 'Settings', icon: Settings },
 ];
 
