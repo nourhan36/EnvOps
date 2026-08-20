@@ -12,5 +12,5 @@ variable "irsa_role_arn" {
 
 variable "helm_chart_version" {
   type = string
-   default     = "4.3.0"
+   default     = "2.8.0"
 }
