@@ -67,7 +67,6 @@ export default function SettingsPage() {
       icon: Bell,
       items: [
         { label: 'TTL Warnings', value: 'Enabled' },
-        { label: 'Lab Ready Alerts', value: 'Enabled' },
       ],
     },
   ];

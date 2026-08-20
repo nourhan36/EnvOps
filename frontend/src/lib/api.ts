@@ -55,6 +55,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ templateId, ...options }),
     }),
+  createSandboxFromPrompt: (prompt: string) =>
+    request<SandboxMutationResponse>('/api/sandboxes/from-prompt', {
+      method: 'POST',
+      body: JSON.stringify({ prompt }),
+    }),
   deleteSandbox: (id: string) =>
     request<SandboxMutationResponse>(`/api/sandboxes/${id}`, { method: 'DELETE' }),
   getDashboardStats: () => request<DashboardStats>('/api/dashboard'),

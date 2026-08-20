@@ -54,6 +54,7 @@ export default function Terminal({ socket, sandboxId, className, onOutput }: Ter
   const fitAddonRef = useRef<FitAddon | null>(null);
   const inputBufferRef = useRef('');
   const startedRef = useRef(false);
+  const readyRef = useRef(false);
   const [terminalError, setTerminalError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -102,8 +103,14 @@ export default function Terminal({ socket, sandboxId, className, onOutput }: Ter
     };
 
     const handleStarted = () => {
+      readyRef.current = true;
       setTerminalError(null);
       term.write('\r\n\x1b[32mConnected to sandbox terminal.\x1b[0m\r\n');
+      // The backend registers the PTY before emitting terminal:started, so the
+      // current size is safe to sync now - this covers resizes that happened
+      // while the start was in flight.
+      fitAddon.fit();
+      socket?.emit('terminal:resize', { cols: term.cols, rows: term.rows });
     };
 
     const handleError = (payload: TerminalError) => {
@@ -112,6 +119,7 @@ export default function Terminal({ socket, sandboxId, className, onOutput }: Ter
     };
 
     const handleExit = (payload: { exitCode?: number; signal?: number }) => {
+      readyRef.current = false;
       term.write(
         `\r\n\x1b[33mTerminal closed (${payload.exitCode ?? payload.signal ?? 'exit'}).\x1b[0m\r\n`,
       );
@@ -150,19 +158,24 @@ export default function Terminal({ socket, sandboxId, className, onOutput }: Ter
 
     const resizeObserver = new ResizeObserver(() => {
       fitAddon.fit();
-      socket?.emit('terminal:resize', { cols: term.cols, rows: term.rows });
+      if (readyRef.current) {
+        socket?.emit('terminal:resize', { cols: term.cols, rows: term.rows });
+      }
     });
     resizeObserver.observe(container);
 
     const handleWindowResize = () => {
       fitAddon.fit();
-      socket?.emit('terminal:resize', { cols: term.cols, rows: term.rows });
+      if (readyRef.current) {
+        socket?.emit('terminal:resize', { cols: term.cols, rows: term.rows });
+      }
     };
     window.addEventListener('resize', handleWindowResize);
 
     return () => {
       window.removeEventListener('resize', handleWindowResize);
       resizeObserver.disconnect();
+      readyRef.current = false;
       socket?.emit('terminal:stop');
       socket?.off('connect', startTerminal);
       socket?.off('terminal:output', handleOutput);

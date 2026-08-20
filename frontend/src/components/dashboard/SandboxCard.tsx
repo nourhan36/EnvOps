@@ -1,25 +1,13 @@
-import { useEffect, useState } from 'react';
-import { Clock, Container, Gauge, Loader2, Terminal, Trash2 } from 'lucide-react';
+import { Clock, Container, Gauge, Loader2, ShieldAlert, Terminal, Trash2 } from 'lucide-react';
 import type { Sandbox, SandboxStatus } from '@/types';
+import { sandboxDisplayName, sandboxImage } from '@/lib/sandbox';
+import { useCountdown } from '@/hooks/useCountdown';
 
 interface SandboxCardProps {
   sandbox: Sandbox;
   onConnect: (id: string) => void;
   onDelete: (id: string) => void;
   isDeleting?: boolean;
-}
-
-function formatTTL(expiresAt: string): string {
-  const diff = new Date(expiresAt).getTime() - Date.now();
-  if (diff <= 0) return 'Expired';
-
-  const hours = Math.floor(diff / 3_600_000);
-  const minutes = Math.floor((diff % 3_600_000) / 60_000);
-  const seconds = Math.floor((diff % 60_000) / 1000);
-
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  if (minutes > 0) return `${minutes}m ${seconds}s`;
-  return `${seconds}s`;
 }
 
 const statusStyles: Record<SandboxStatus, string> = {
@@ -34,16 +22,8 @@ const statusStyles: Record<SandboxStatus, string> = {
 const connectable = new Set<SandboxStatus>(['running']);
 
 export default function SandboxCard({ sandbox, onConnect, onDelete, isDeleting }: SandboxCardProps) {
-  const [ttl, setTtl] = useState(() => formatTTL(sandbox.expiresAt));
+  const { ttl, isExpired } = useCountdown(sandbox.expiresAt);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTtl(formatTTL(sandbox.expiresAt));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [sandbox.expiresAt]);
-
-  const isExpired = new Date(sandbox.expiresAt).getTime() <= Date.now();
   const effectiveStatus: SandboxStatus = isExpired ? 'expired' : sandbox.status;
   const canConnect = connectable.has(effectiveStatus);
   const isBusy = effectiveStatus === 'provisioning' || isDeleting;
@@ -52,8 +32,16 @@ export default function SandboxCard({ sandbox, onConnect, onDelete, isDeleting }
     <article className="group rounded-xl border border-border bg-surface-raised p-5 transition-colors hover:border-accent/40 hover:bg-surface-overlay">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
-          <h3 className="font-semibold text-white">{sandbox.template.displayName}</h3>
-          <p className="mt-1 font-mono text-xs text-gray-500">{sandbox.template.dockerImage}</p>
+          <h3 className="font-semibold text-white">{sandboxDisplayName(sandbox)}</h3>
+          <p className="mt-1 flex items-center gap-2 font-mono text-xs text-gray-500">
+            {sandboxImage(sandbox)}
+            {sandbox.securityMode && sandbox.securityMode !== 'hardened' && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-status-warning/40 bg-status-warning/10 px-1.5 py-px text-[10px] font-medium uppercase text-status-warning">
+                <ShieldAlert className="h-2.5 w-2.5" />
+                {sandbox.securityMode}
+              </span>
+            )}
+          </p>
         </div>
         <span
           className={`rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${statusStyles[effectiveStatus]}`}
@@ -75,12 +63,14 @@ export default function SandboxCard({ sandbox, onConnect, onDelete, isDeleting }
             </span>
           </span>
         )}
-        <span className="inline-flex items-center gap-2">
-          <Clock className="h-4 w-4 text-accent-hover" />
-          <span>
-            TTL: <span className="font-mono text-status-active">{ttl}</span>
+        {effectiveStatus !== 'failed' && (
+          <span className="inline-flex items-center gap-2">
+            <Clock className="h-4 w-4 text-accent-hover" />
+            <span>
+              TTL: <span className="font-mono text-status-active">{ttl}</span>
+            </span>
           </span>
-        </span>
+        )}
       </div>
 
       <div className="flex gap-2">
