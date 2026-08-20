@@ -11,6 +11,7 @@ export default function App() {
       <Routes>
         <Route element={<Layout />}>
           <Route index element={<DashboardPage />} />
+          <Route path="sandbox/:sandboxId" element={<SandboxTerminalPage />} />
           <Route path="sandbox" element={<SandboxTerminalPage />} />
           <Route path="lab-generator" element={<LabGeneratorPage />} />
           <Route path="settings" element={<SettingsPage />} />

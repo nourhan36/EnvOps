@@ -15,6 +15,11 @@ import {
   TerminalTargetError,
 } from "../services/sandbox-terminal-target.service";
 import { terminalService } from "../services/terminal.service";
+import {
+  CapturedFailureEvent,
+  errorCaptureRegistry,
+  TerminalErrorCapture,
+} from "../error-interceptor/capture.service";
 
 type TerminalSocket = Socket<
   ClientToServerEvents,
@@ -24,6 +29,30 @@ type TerminalSocket = Socket<
 >;
 
 const startingSockets = new Set<string>();
+
+// One error capture per socket connection; cleared when the terminal stops or
+// the socket disconnects.
+const socketCaptures = new Map<string, { sandboxId: string; capture: TerminalErrorCapture }>();
+
+const ERROR_PREVIEW_MAX_CHARS = 4000;
+
+function createFailureListener(
+  socket: TerminalSocket,
+): (event: CapturedFailureEvent) => void {
+  return ({ sandboxId, failure }) => {
+    if (!socket.connected) {
+      return;
+    }
+
+    socket.emit("ai:error-detected", {
+      sandboxId,
+      command: failure.command,
+      stderrPreview: failure.stderr.slice(0, ERROR_PREVIEW_MAX_CHARS),
+      signature: failure.signature,
+      detectedAt: failure.detectedAt.toISOString(),
+    });
+  };
+}
 
 function emitError(
   socket: TerminalSocket,
@@ -104,8 +133,17 @@ export function registerTerminalSocketHandlers(socket: TerminalSocket): void {
       const cols = normalizeSize(payload.cols, env.terminalDefaultCols);
       const rows = normalizeSize(payload.rows, env.terminalDefaultRows);
 
+      const capture = new TerminalErrorCapture(
+        target.sandboxId,
+        createFailureListener(socket),
+      );
+      errorCaptureRegistry.attach(target.sandboxId, capture);
+      socketCaptures.set(socket.id, { sandboxId: target.sandboxId, capture });
+
       terminalService.start(socket.id, target, cols, rows, {
         onData: (data) => {
+          capture.handleOutput(data);
+
           if (socket.connected) {
             socket.emit("terminal:output", { data });
           }
@@ -164,7 +202,10 @@ export function registerTerminalSocketHandlers(socket: TerminalSocket): void {
         code: "TERMINAL_NOT_STARTED",
         message: "Start a terminal before sending input.",
       });
+      return;
     }
+
+    socketCaptures.get(socket.id)?.capture.handleInput(payload.data);
   });
 
   socket.on("terminal:resize", (payload) => {
@@ -188,11 +229,25 @@ export function registerTerminalSocketHandlers(socket: TerminalSocket): void {
   });
 
   socket.on("terminal:stop", () => {
+    const entry = socketCaptures.get(socket.id);
+
+    if (entry) {
+      errorCaptureRegistry.detachIf(entry.sandboxId, entry.capture);
+      socketCaptures.delete(socket.id);
+    }
+
     terminalService.close(socket.id);
   });
 
   socket.on("disconnect", (reason) => {
     startingSockets.delete(socket.id);
+    const entry = socketCaptures.get(socket.id);
+
+    if (entry) {
+      errorCaptureRegistry.detachIf(entry.sandboxId, entry.capture);
+      socketCaptures.delete(socket.id);
+    }
+
     terminalService.close(socket.id);
     console.log(`Socket disconnected: ${socket.id} (${reason})`);
   });

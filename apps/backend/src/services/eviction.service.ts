@@ -1,5 +1,6 @@
 import { prisma } from "../db/client";
 import { deleteSandboxResources } from "./orchestrator.service";
+import { SandboxStatus } from "../constants/sandbox-status";
 
 export async function runEvictionCycle() {
     console.log("Checking expired sandboxes...");
@@ -7,7 +8,7 @@ export async function runEvictionCycle() {
     const expiredSandboxes = await prisma.sandbox.findMany({
         where: {
         deletedAt: null,
-        status: "running", 
+        status: SandboxStatus.RUNNING,
         expiresAt: {
             lte: new Date()
         }
@@ -23,7 +24,7 @@ export async function runEvictionCycle() {
         try {
 
             console.log(
-                `Deleting expired sandbox: ${sandbox.id}`
+                `Expiring sandbox: ${sandbox.id}`
             );
 
             await deleteSandboxResources(sandbox.namespace);
@@ -32,7 +33,7 @@ export async function runEvictionCycle() {
                     id: sandbox.id
                 },
                 data: {
-                    deletedAt: new Date()
+                    status: SandboxStatus.EXPIRED
                 }
             });
 

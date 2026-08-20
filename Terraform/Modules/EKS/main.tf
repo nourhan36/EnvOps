@@ -39,23 +39,37 @@ resource "aws_eks_cluster" "this" {
     ]
 
   }
- 
-  
+
+
   depends_on = [
     aws_iam_role_policy_attachment.cluster_policy
   ]
 }
 
+data "aws_caller_identity" "this" {}
+
+locals {
+  # Real EKS always returns identity.oidc.issuer. Some AWS emulators (e.g.
+  # Floci) do not expose it, so fall back to an override or a deterministic
+  # placeholder URL so downstream IRSA resources still plan cleanly.
+  oidc_issuer_url = coalesce(
+    try(aws_eks_cluster.this.identity[0].oidc[0].issuer, null),
+    "https://oidc.eks.${var.region}.amazonaws.com/id/${replace(aws_eks_cluster.this.name, "[^a-zA-Z0-9-]", "-")}"
+  )
+}
+
 # IAM OIDC provider automatically. Workloads using IRSA
 # (including External Secrets Operator) require this provider to assume roles.
 data "tls_certificate" "oidc" {
-  url = aws_eks_cluster.this.identity[0].oidc[0].issuer
+  count = var.create_oidc_provider ? 1 : 0
+  url   = local.oidc_issuer_url
 }
 
 resource "aws_iam_openid_connect_provider" "this" {
+  count           = var.create_oidc_provider ? 1 : 0
   client_id_list  = ["sts.amazonaws.com"]
-  thumbprint_list = [data.tls_certificate.oidc.certificates[0].sha1_fingerprint]
-  url             = aws_eks_cluster.this.identity[0].oidc[0].issuer
+  thumbprint_list = [data.tls_certificate.oidc[0].certificates[0].sha1_fingerprint]
+  url             = local.oidc_issuer_url
   tags            = var.tags
 }
 
@@ -106,7 +120,7 @@ resource "aws_eks_node_group" "private_nodes" {
     max_size     = 3
     min_size     = 1
   }
- 
+
   # instance_types = ["t3.medium"] // unavaible in my aws account, so I will use c7i-flex.large instead
   instance_types = ["c7i-flex.large"]
 
