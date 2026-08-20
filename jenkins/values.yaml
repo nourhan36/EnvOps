@@ -1,0 +1,89 @@
+persistence:
+  enabled: true
+  storageClass: efs-sc
+  size: 20Gi
+
+controller:
+  ingress:
+    enabled: true
+    ingressClassName: alb
+    annotations:
+      kubernetes.io/ingress.class: alb
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
+      alb.ingress.kubernetes.io/healthcheck-path: /login
+      alb.ingress.kubernetes.io/success-codes: "200-399"
+    jenkinsUrlProtocol: "http"
+
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2"
+      memory: "2Gi"
+
+  serviceAccount:
+    create: true
+    name: jenkins-controller-sa
+
+  installPlugins:
+    - kubernetes
+    - workflow-aggregator
+    - git
+    - configuration-as-code
+    - github-oauth
+    - github-branch-source
+    - matrix-auth
+
+  overwritePlugins: true
+  healthProbes: true
+
+  csrf:
+    defaultCrumbIssuer:
+      enabled: true
+      proxyCompatibility: true
+
+  JCasC:
+    enabled: true
+    configScripts:
+      security: |
+        jenkins:
+          authorizationStrategy:
+            loggedInUsersCanDoAnything:
+              allowAnonymousRead: false
+
+      kubernetes-cloud: |
+        jenkins:
+          clouds:
+            - kubernetes:
+                name: "eks-cluster"
+                namespace: "cicd"
+                serverUrl: "https://kubernetes.default.svc"
+                jenkinsUrl: "http://k8s-cicd-jenkins-2a437fc38e-1500124528.us-east-1.elb.amazonaws.com" 
+                webSocket: true
+
+                templates:
+                  - name: "default-agent"
+                    label: "jenkins-agent"
+                    serviceAccount: "jenkins-agent-sa"
+
+                    workspaceVolume:
+                      emptyDirWorkspaceVolume: {}
+
+                    containers:
+                      - name: "jnlp"
+                        image: "jenkins/inbound-agent:latest"
+                        args: "${computer.jnlpmac} ${computer.name}"
+
+                      - name: "kaniko"
+                        image: "gcr.io/kaniko-project/executor:v1.23.2-debug"
+                        command: "sleep"
+                        args: "infinity"
+
+agent:
+  serviceAccount:
+    name: jenkins-agent-sa
+    annotations:
+      eks.amazonaws.com/role-arn: arn:aws:iam::524558748637:role/jenkins-agent-role
