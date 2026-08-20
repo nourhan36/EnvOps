@@ -78,6 +78,10 @@ controller:
                       - name: "jnlp"
                         image: "jenkins/inbound-agent:latest"
                         args: "${computer.jnlpmac} ${computer.name}"
+                      - name: "node"
+                        image: "node:22"
+                        command: "sleep"
+                        args: "infinity"
 
                       - name: "kaniko"
                         image: "gcr.io/kaniko-project/executor:v1.23.2-debug"
