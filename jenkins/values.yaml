@@ -61,8 +61,8 @@ controller:
                 name: "eks-cluster"
                 namespace: "cicd"
                 serverUrl: "https://kubernetes.default.svc"
-                jenkinsUrl: "http://NGINX-LOAD-BALANCER-DNS"
-
+            
+                jenkinsUrl: "http://a3f7f8e1ad3654b60b8c84a3ae9e5b03-1095597635.us-east-1.elb.amazonaws.com"
                 webSocket: true
 
                 templates:
@@ -88,4 +88,4 @@ agent:
   serviceAccount:
     name: jenkins-agent-sa
     annotations:
-      eks.amazonaws.com/role-arn: arn:aws:iam::524558748637:role/jenkins-agent-role
+      eks.amazonaws.com/role-arn: arn:aws:iam::<AWS_ACCOUNT_ID>:role/jenkins-agent-role
