@@ -38,5 +38,10 @@ jobs:
       - name: Terraform Init
         run: terraform init
 
+
+      - name: Check Terraform State
+        run: terraform state list
+
       - name: Terraform Destroy
         run: terraform destroy -auto-approve -var-file="envs/dev.tfvars"
+
