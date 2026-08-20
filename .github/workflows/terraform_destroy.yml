@@ -1,3 +1,4 @@
+
 name: Terraform Destroy
 
 on:
@@ -36,11 +37,20 @@ jobs:
         uses: hashicorp/setup-terraform@v3
 
       - name: Terraform Init
-        run: terraform init
+        run: terraform init -reconfigure
 
+      - name: Show Terraform Backend
+        run: |
+          echo "Terraform backend configuration:"
+          cat backend.tf
 
       - name: Check Terraform State
-        run: terraform state list
+        run: |
+          echo "Terraform state:"
+          terraform state list
+
+      - name: Terraform Plan Destroy
+        run: terraform plan -destroy -var-file="envs/dev.tfvars"
 
       - name: Terraform Destroy
         run: terraform destroy -auto-approve -var-file="envs/dev.tfvars"
