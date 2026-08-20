@@ -15,13 +15,15 @@ output "cluster_certificate_authority_data" {
 
 output "oidc_provider_arn" {
   description = "ARN of the IAM OIDC provider used by EKS workloads with IRSA"
-  value = try(
-    aws_iam_openid_connect_provider.this[0].arn,
-    "arn:aws:iam::${data.aws_caller_identity.this.account_id}:oidc-provider/${trimprefix(local.oidc_issuer_url, "https://")}"
-  )
+  value       = aws_iam_openid_connect_provider.this.arn
 }
 
 output "oidc_provider_url" {
   description = "OIDC issuer URL without the HTTPS scheme, for IAM trust-policy conditions"
-  value       = trimprefix(local.oidc_issuer_url, "https://")
+  value       = trimprefix(aws_eks_cluster.this.identity[0].oidc[0].issuer, "https://")
+}
+
+output "cluster_security_group_id" {
+  description = "Security group ID used by the EKS cluster and worker nodes"
+  value       = aws_eks_cluster.this.vpc_config[0].cluster_security_group_id
 }
