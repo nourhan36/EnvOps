@@ -31,4 +31,12 @@ variable "tags" {
   type = map(string)
 }
 
+variable "repositories" {
+  description = "List of ECR repositories to create"
+  type        = list(string)
 
+  default = [
+    "frontend",
+    "backend"
+  ]
+}

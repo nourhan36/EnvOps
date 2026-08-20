@@ -62,3 +62,12 @@ module "efs" {
   eks_security_group_id = module.eks.cluster_security_group_id
   depends_on            = [module.eks, module.efs_csi_irsa]
 }
+
+
+module "ecr" {
+  source = "./modules/ECR"
+  cluster_name   = var.project_name
+  node_role_arn  = module.eks.node_role_arn
+  images_to_keep = 10
+  repositories   = var.repositories
+}
