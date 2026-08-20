@@ -10,3 +10,6 @@ variable "policy_name" {
   type    = string
   default = "envops-eso-secrets-policy"
 }
+variable "project_name" {
+  type = string
+}

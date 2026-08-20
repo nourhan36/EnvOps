@@ -15,9 +15,9 @@ module "eks" {
 }
 module "iam" {
   source = "./Modules/IAM"
-
   region     = var.region
   account_id = data.aws_caller_identity.current.account_id
+  project_name = var.project_name
 
 }
 module "irsa" {
@@ -66,8 +66,19 @@ module "efs" {
 
 module "ecr" {
   source = "./modules/ECR"
-  cluster_name   = var.project_name
+  project_name   = var.project_name
   node_role_arn  = module.eks.node_role_arn
   images_to_keep = 10
   repositories   = var.repositories
+}
+
+module "jenkins_agent_irsa" {
+  source = "./modules/IRSA"
+
+  name              = "jenkins-agent-role"
+  oidc_provider_arn = module.eks.oidc_arn
+  oidc_issuer       = replace(module.eks.oidc_url, "https://", "")
+  namespace         = "cicd"
+  service_account   = "jenkins-agent-sa"
+  policy_arn        = module.iam_policy.jenkins_agent_policy
 }

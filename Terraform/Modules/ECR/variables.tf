@@ -1,4 +1,4 @@
-variable "cluster_name" {
+variable "project_name" {
   type = string
 }
 
