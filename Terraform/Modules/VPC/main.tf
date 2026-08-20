@@ -27,6 +27,20 @@ resource "aws_subnet" "public" {
 
 
 
+# resource "aws_subnet" "private" {
+#   count = length(var.private_subnets)
+
+#   vpc_id            = aws_vpc.this.id
+#   cidr_block        = var.private_subnets[count.index]
+#   availability_zone = var.azs[count.index]
+
+#   tags = merge(var.tags, {
+#     Name = "${var.name}-private-${count.index + 1}"
+
+#     "kubernetes.io/role/internal-elb" = "1"
+#   })
+# }
+
 resource "aws_subnet" "private" {
   count = length(var.private_subnets)
 
@@ -39,8 +53,13 @@ resource "aws_subnet" "private" {
 
     "kubernetes.io/role/internal-elb" = "1"
   })
-}
 
+  lifecycle {
+    ignore_changes = [
+      tags["kubernetes.io/cluster/envops-dev-cluster"]
+    ]
+  }
+}
 
 
 resource "aws_internet_gateway" "this" {
