@@ -4,12 +4,10 @@ import { ArrowLeft, Clock, Container, Loader2, Wifi, WifiOff } from 'lucide-reac
 import Terminal from '@/components/terminal/Terminal';
 import AIPanel from '@/components/terminal/AIPanel';
 import { useSocket } from '@/providers/SocketProvider';
+import { useCountdown } from '@/hooks/useCountdown';
 import type { Sandbox } from '@/types';
 import { api } from '@/lib/api';
-
-function formatExpiry(iso: string): string {
-  return new Date(iso).toLocaleString();
-}
+import { sandboxDisplayName, sandboxImage } from '@/lib/sandbox';
 
 export default function SandboxTerminalPage() {
   const { sandboxId } = useParams<{ sandboxId: string }>();
@@ -19,6 +17,7 @@ export default function SandboxTerminalPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [aiPanelOpen, setAiPanelOpen] = useState(true);
+  const countdown = useCountdown(sandbox?.expiresAt, true);
 
   useEffect(() => {
     if (!sandboxId) {
@@ -74,18 +73,23 @@ export default function SandboxTerminalPage() {
           <div>
             <p className="text-xs uppercase tracking-wide text-gray-500">Sandbox</p>
             <h1 className="text-lg font-semibold text-white">
-              {isLoading ? 'Loading…' : sandbox?.template.displayName ?? 'Unknown sandbox'}
+              {isLoading ? 'Loading…' : sandbox ? sandboxDisplayName(sandbox) : 'Unknown sandbox'}
             </h1>
           </div>
           {sandbox && (
             <>
               <div className="hidden items-center gap-2 text-sm text-gray-400 sm:flex">
                 <Container className="h-4 w-4 text-accent-hover" />
-                <span className="font-mono">{sandbox.template.dockerImage}</span>
+                <span className="font-mono">{sandboxImage(sandbox)}</span>
               </div>
               <div className="hidden items-center gap-2 text-sm text-gray-400 md:flex">
-                <Clock className="h-4 w-4 text-status-active" />
-                <span>Expires {formatExpiry(sandbox.expiresAt)}</span>
+                <Clock
+                  className={`h-4 w-4 ${countdown.isExpired ? 'text-status-danger' : 'text-status-active'}`}
+                />
+                <span className={countdown.isExpired ? 'text-status-danger' : ''}>
+                  {countdown.isExpired ? 'Expired' : 'Expires in '}
+                  <span className="font-mono text-status-active">{countdown.ttl}</span>
+                </span>
               </div>
             </>
           )}
