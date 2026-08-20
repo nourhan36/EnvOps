@@ -29,6 +29,14 @@ export interface TerminalExitPayload {
   signal?: number;
 }
 
+export interface AIErrorDetectedPayload {
+  sandboxId: string;
+  command: string;
+  stderrPreview: string;
+  signature?: string;
+  detectedAt: string;
+}
+
 export type TerminalErrorCode =
   | "INVALID_PAYLOAD"
   | "UNAUTHORIZED"
@@ -68,6 +76,7 @@ export interface ServerToClientEvents {
   "terminal:started": (payload: TerminalStartedPayload) => void;
   "terminal:exit": (payload: TerminalExitPayload) => void;
   "terminal:error": (payload: TerminalErrorPayload) => void;
+  "ai:error-detected": (payload: AIErrorDetectedPayload) => void;
 }
 
 export interface InterServerEvents {

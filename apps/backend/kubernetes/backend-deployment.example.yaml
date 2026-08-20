@@ -43,6 +43,8 @@ spec:
                   key: redis-url
             - name: SANDBOX_POD_SELECTOR
               value: "app=sandbox"
+            - name: EVICTION_INTERVAL_MS
+              value: "60000"
             - name: TERMINAL_SHELL
               value: "/bin/sh"
             - name: DEMO_USER_EMAIL

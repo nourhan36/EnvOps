@@ -3,24 +3,81 @@ import * as stream from 'stream';
 import { env } from '../config/env';
 import { SandboxStatus } from '../constants/sandbox-status';
 
-const kc = new k8s.KubeConfig();
-kc.loadFromDefault();
+function buildEmulatorKubeConfig(): k8s.KubeConfig {
+    const kc = new k8s.KubeConfig();
+    const clusterName = 'envops-emulator';
+    const userName = 'envops-emulator';
 
-const currentCluster = kc.getCurrentCluster();
-
-if (env.kubernetesTarget === 'emulator' && currentCluster) {
-    const localEmulatorCluster: k8s.Cluster = {
-        ...currentCluster,
+    kc.addCluster({
+        name: clusterName,
         server: env.kubernetesEmulatorServer,
         skipTLSVerify: true,
-    };
+    });
 
-    kc.clusters = kc.clusters.filter(c => c.name !== currentCluster.name);
-    kc.clusters.push(localEmulatorCluster);
+    // The Floci EKS emulator authenticates with the same k8s-aws-v1 bearer
+    // tokens the real EKS API does. Reuse the exec/authProvider user from the
+    // default kubeconfig so requests carry a valid token.
+    const defaultKc = new k8s.KubeConfig();
+    try {
+        defaultKc.loadFromDefault();
+    } catch {
+        // No default kubeconfig available - fall through to the AWS CLI fallback.
+    }
+
+    const execUser = defaultKc
+        .getUsers()
+        .find((user) => user.exec || user.authProvider?.config?.exec);
+
+    if (execUser?.exec) {
+        kc.addUser({ name: userName, exec: execUser.exec });
+    } else if (execUser?.authProvider) {
+        kc.addUser({ name: userName, authProvider: execUser.authProvider });
+    } else {
+        kc.addUser({
+            name: userName,
+            exec: {
+                apiVersion: 'client.authentication.k8s.io/v1beta1',
+                command: 'aws',
+                args: [
+                    'eks',
+                    'get-token',
+                    '--region',
+                    env.kubernetesEmulatorAwsRegion,
+                    '--cluster-name',
+                    env.kubernetesEmulatorAwsClusterName,
+                    '--output',
+                    'json',
+                ],
+            },
+        });
+    }
+
+    kc.addContext({
+        name: clusterName,
+        cluster: clusterName,
+        user: userName,
+        namespace: 'default',
+    });
+    kc.setCurrentContext(clusterName);
+
+    return kc;
 }
 
-if (!currentCluster) {
-    throw new Error('No Kubernetes cluster is configured. Set up kubeconfig or use the emulator target.');
+let kc: k8s.KubeConfig;
+
+if (env.kubernetesTarget === 'emulator') {
+    kc = buildEmulatorKubeConfig();
+} else {
+    kc = new k8s.KubeConfig();
+    try {
+        kc.loadFromDefault();
+    } catch {
+        throw new Error('No Kubernetes kubeconfig was found. Set up kubeconfig or use the emulator target.');
+    }
+
+    if (!kc.getCurrentCluster()) {
+        throw new Error('No Kubernetes cluster is configured. Set up kubeconfig or use the emulator target.');
+    }
 }
 
 const coreV1Api = kc.makeApiClient(k8s.CoreV1Api);
@@ -31,6 +88,12 @@ export interface ProvisionRequest {
         cpu: string;
         memory: string;
     };
+    /** Relaxes the security context (root + privileged) for runtime images like Docker-in-Docker or k3s. */
+    privileged?: boolean;
+    /** Optional pod command that replaces the default "sleep infinity" (e.g. to start dockerd). */
+    command?: string[];
+    /** Optional pod args passed to the image entrypoint (e.g. k3s server args). */
+    args?: string[];
 }
 
 export interface AttachTerminalRequest {
@@ -45,11 +108,38 @@ export interface ProvisionResult {
     status: string;
 }
 
+/** @internal exported for testing */
+export function buildSecurityContext(privileged: boolean) {
+    if (privileged) {
+        // Trusted runtime templates only. Docker-in-Docker and k3s require root
+        // and privileged access (device cgroups, mounts). This intentionally
+        // bypasses the hardened sandbox context - never enable it on arbitrary
+        // or user-controlled images.
+        return {
+            runAsUser: 0,
+            runAsNonRoot: false,
+            privileged: true,
+            allowPrivilegeEscalation: true,
+        };
+    }
+
+    // Hardened default: non-root, no privilege escalation, no capabilities.
+    return {
+        runAsNonRoot: true,
+        runAsUser: 1000,
+        allowPrivilegeEscalation: false,
+        capabilities: { drop: ['ALL'] }
+    };
+}
+
 export async function provisionSandbox(
     request: ProvisionRequest
 ): Promise<ProvisionResult> {
 
-    console.log(`Provisioning sandbox -> Image: ${request.dockerImage}, Limits: ${JSON.stringify(request.limits)}`);
+    const privileged = request.privileged === true;
+    const command = request.command ?? ["/bin/sh", "-c", "sleep infinity"];
+
+    console.log(`Provisioning sandbox -> Image: ${request.dockerImage}, Limits: ${JSON.stringify(request.limits)}, Privileged: ${privileged}`);
 
     const namespaceName = `sandbox-${Date.now()}`;
     const podName = 'sandbox-terminal';
@@ -72,7 +162,8 @@ export async function provisionSandbox(
                     containers: [{
                         name: 'sandbox-container',
                         image: request.dockerImage,
-                        command: ["/bin/sh", "-c", "sleep infinity"],
+                        command: command,
+                        ...(request.args ? { args: request.args } : {}),
                         resources: {
                             requests: { cpu: '100m', memory: '128Mi' },
                             limits: {
@@ -80,12 +171,7 @@ export async function provisionSandbox(
                                 memory: request.limits.memory
                             }
                         },
-                        securityContext: {
-                            runAsNonRoot: true,
-                            runAsUser: 1000,
-                            allowPrivilegeEscalation: false,
-                            capabilities: { drop: ['ALL'] }
-                        }
+                        securityContext: buildSecurityContext(privileged)
                     }],
                     restartPolicy: 'Never'
                 }
@@ -104,10 +190,12 @@ export async function provisionSandbox(
         });
 
         let isReady = false;
+        const pollIntervalMs = 2_000;
+        const maxAttempts = Math.ceil(env.kubernetesProvisionTimeoutMs / pollIntervalMs);
         let attempts = 0;
 
-        while (!isReady && attempts < 15) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
+        while (!isReady && attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
 
             const podResponse = await coreV1Api.readNamespacedPodStatus({
                 name: podName,
@@ -150,7 +238,7 @@ export async function cleanupSandbox(namespace: string): Promise<void> {
 
         console.log(`Garbage collection triggered successfully for: ${namespace}`);
     } catch (error: any) {
-        if (error.statusCode === 404) {
+        if (error.code === 404) {
             console.log(`Namespace ${namespace} not found. Assuming already cleaned up.`);
             return;
         }
@@ -200,7 +288,7 @@ export async function deleteSandboxResources(namespace: string): Promise<void> {
         await coreV1Api.deleteNamespace({ name: namespace });
         console.log(`Successfully deleted sandbox resources (namespace & pods) for: ${namespace}`);
     } catch (error: any) {
-        if (error.statusCode === 404) {
+        if (error.code === 404) {
             console.log(`Namespace ${namespace} not found. Assuming already deleted.`);
             return;
         }

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import SandboxCard from '@/components/dashboard/SandboxCard';
@@ -6,11 +6,25 @@ import type { Sandbox } from '@/types';
 
 const sandbox: Sandbox = {
   id: 'sandbox-42',
-  name: 'terraform-lab',
-  imageType: 'hashicorp/terraform:1.7',
-  status: 'active',
-  expiresAt: '2026-07-21T14:30:00.000Z',
+  userId: 'user-1',
+  templateId: 'template-1',
+  template: {
+    id: 'template-1',
+    name: 'terraform',
+    displayName: 'Terraform Lab',
+    description: 'Terraform sandbox',
+    dockerImage: 'hashicorp/terraform:1.7',
+    defaultLimits: { cpu: '250m', memory: '256Mi' },
+    defaultTtlMinutes: 120,
+    privileged: false,
+    command: null,
+    isActive: true,
+    createdAt: '2026-07-21T12:00:00.000Z',
+  },
+  namespace: 'terraform-lab',
+  status: 'running',
   createdAt: '2026-07-21T12:00:00.000Z',
+  expiresAt: '2026-07-21T14:30:00.000Z',
 };
 
 describe('SandboxCard', () => {
@@ -24,41 +38,120 @@ describe('SandboxCard', () => {
   });
 
   it('shows the sandbox metadata and a human-readable TTL', () => {
-    render(<SandboxCard sandbox={sandbox} onReclaim={vi.fn()} onTerminate={vi.fn()} />);
+    render(<SandboxCard sandbox={sandbox} onConnect={vi.fn()} onDelete={vi.fn()} />);
 
-    expect(screen.getByRole('heading', { name: 'terraform-lab' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Terraform Lab' })).toBeInTheDocument();
     expect(screen.getByText('hashicorp/terraform:1.7')).toBeInTheDocument();
-    expect(screen.getByText('active')).toBeInTheDocument();
+    expect(screen.getByText('running')).toBeInTheDocument();
     expect(screen.getByText('30m 0s')).toBeInTheDocument();
   });
 
-  it('sends the sandbox id through reclaim and termination actions', async () => {
-    vi.useRealTimers();
-    const onReclaim = vi.fn();
-    const onTerminate = vi.fn();
-    const user = userEvent.setup();
-    render(<SandboxCard sandbox={sandbox} onReclaim={onReclaim} onTerminate={onTerminate} />);
-
-    await user.click(screen.getByRole('button', { name: 'Reclaim' }));
-    await user.click(screen.getByRole('button', { name: 'Terminate' }));
-    await user.click(screen.getByRole('button', { name: 'Delete sandbox' }));
-
-    expect(onReclaim).toHaveBeenCalledWith('sandbox-42');
-    expect(onTerminate).toHaveBeenCalledTimes(2);
-    expect(onTerminate).toHaveBeenNthCalledWith(1, 'sandbox-42');
-  });
-
-  it('disables all actions after termination', () => {
+  it('shows per-sandbox resource limits when present', () => {
     render(
       <SandboxCard
-        sandbox={{ ...sandbox, status: 'terminated' }}
-        onReclaim={vi.fn()}
-        onTerminate={vi.fn()}
+        sandbox={{ ...sandbox, resourceLimits: { cpu: '1', memory: '1Gi' } }}
+        onConnect={vi.fn()}
+        onDelete={vi.fn()}
       />,
     );
 
-    expect(screen.getByRole('button', { name: 'Reclaim' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Terminate' })).toBeDisabled();
+    expect(screen.getByText('1 CPU · 1Gi')).toBeInTheDocument();
+  });
+
+  it('sends the sandbox id through connect and delete actions', async () => {
+    vi.useRealTimers();
+    const onConnect = vi.fn();
+    const onDelete = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <SandboxCard
+        sandbox={{ ...sandbox, expiresAt: '2099-07-21T14:30:00.000Z' }}
+        onConnect={onConnect}
+        onDelete={onDelete}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Connect' }));
+    await user.click(screen.getByRole('button', { name: 'Delete sandbox' }));
+
+    expect(onConnect).toHaveBeenCalledWith('sandbox-42');
+    expect(onDelete).toHaveBeenCalledWith('sandbox-42');
+  });
+
+  it('disables actions for non-connectable and deleted sandboxes', () => {
+    render(
+      <SandboxCard
+        sandbox={{ ...sandbox, status: 'deleted' }}
+        onConnect={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Connect' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Delete sandbox' })).toBeDisabled();
+  });
+
+  it('disables connect while a sandbox is provisioning', async () => {
+    vi.useRealTimers();
+    const user = userEvent.setup();
+    const onConnect = vi.fn();
+    render(
+      <SandboxCard
+        sandbox={{ ...sandbox, status: 'provisioning', expiresAt: '2099-07-21T14:30:00.000Z' }}
+        onConnect={onConnect}
+        onDelete={vi.fn()}
+      />,
+    );
+
+    const connect = screen.getByRole('button', { name: 'Provisioning…' });
+    expect(connect).toBeDisabled();
+
+    await user.click(connect);
+    expect(onConnect).not.toHaveBeenCalled();
+  });
+
+  it('labels the busy state as Deleting and disables connect while a delete is in progress', () => {
+    render(
+      <SandboxCard
+        sandbox={{ ...sandbox, status: 'running' }}
+        onConnect={vi.fn()}
+        onDelete={vi.fn()}
+        isDeleting
+      />,
+    );
+
+    expect(screen.getByText('Deleting…')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Deleting…' })).toBeDisabled();
+  });
+
+  it('keeps connect enabled for a running sandbox that is not deleting', () => {
+    render(<SandboxCard sandbox={sandbox} onConnect={vi.fn()} onDelete={vi.fn()} />);
+
+    expect(screen.getByRole('button', { name: 'Connect' })).toBeEnabled();
+  });
+
+  it('shows an expired badge and removes the connect button once the TTL has elapsed', () => {
+    const expired = { ...sandbox, expiresAt: '2026-07-21T13:30:00.000Z' };
+    render(<SandboxCard sandbox={expired} onConnect={vi.fn()} onDelete={vi.fn()} />);
+
+    expect(screen.getByText('expired')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Connect' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Delete sandbox' })).toBeEnabled();
+    expect(screen.getByText('Expired')).toBeInTheDocument();
+  });
+
+  it('flips a running sandbox to expired and removes connect when the countdown hits zero', () => {
+    render(<SandboxCard sandbox={sandbox} onConnect={vi.fn()} onDelete={vi.fn()} />);
+
+    expect(screen.getByText('running')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Connect' })).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(31 * 60 * 1000);
+    });
+
+    expect(screen.getByText('expired')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Connect' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Delete sandbox' })).toBeEnabled();
   });
 });
