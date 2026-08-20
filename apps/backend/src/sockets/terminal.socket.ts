@@ -28,7 +28,18 @@ type TerminalSocket = Socket<
   SocketData
 >;
 
-const startingSockets = new Set<string>();
+const startingSockets = new Map<string, Promise<TerminalStartOutcome>>();
+
+type TerminalStartOutcome =
+  | { ok: true; terminal: TerminalInfo }
+  | { ok: false; error: TerminalErrorPayload };
+
+interface TerminalInfo {
+  sandboxId: string;
+  namespace: string;
+  podName: string;
+  containerName?: string;
+}
 
 // One error capture per socket connection; cleared when the terminal stops or
 // the socket disconnects.
@@ -109,25 +120,40 @@ export function registerTerminalSocketHandlers(socket: TerminalSocket): void {
     }
 
     if (startingSockets.has(socket.id)) {
-      const error: TerminalErrorPayload = {
-        code: "TERMINAL_ALREADY_STARTING",
-        message: "A terminal is already being started for this connection.",
-      };
-      emitError(socket, error);
-      reply({ ok: false, error });
+      // A terminal start is already in flight for this connection. This is a
+      // normal condition, not a client bug: the frontend double-mounts under
+      // React StrictMode and a reconnect can also re-emit start before the
+      // first has finished. Coalesce instead of erroring - the in-flight start
+      // broadcasts terminal:started to the whole socket, so we only need to
+      // await its outcome and mirror the acknowledgement.
+      try {
+        reply(await startingSockets.get(socket.id)!);
+      } catch {
+        reply({
+          ok: false,
+          error: {
+            code: "TERMINAL_START_FAILED",
+            message: "Unable to start the terminal.",
+          },
+        });
+      }
       return;
     }
 
-    startingSockets.add(socket.id);
-
-    try {
+    const startPromise = (async (): Promise<TerminalStartOutcome> => {
       const target = await resolveSandboxTerminalTarget(
         payload.sandboxId.trim(),
         socket.data.userEmail,
       );
 
       if (!socket.connected) {
-        return;
+        return {
+          ok: false,
+          error: {
+            code: "INTERNAL_ERROR",
+            message: "Socket disconnected before the terminal could be started.",
+          },
+        };
       }
 
       const cols = normalizeSize(payload.cols, env.terminalDefaultCols);
@@ -155,7 +181,7 @@ export function registerTerminalSocketHandlers(socket: TerminalSocket): void {
         },
       });
 
-      const terminal = {
+      const terminal: TerminalInfo = {
         sandboxId: target.sandboxId,
         namespace: target.namespace,
         podName: target.podName,
@@ -163,7 +189,14 @@ export function registerTerminalSocketHandlers(socket: TerminalSocket): void {
       };
 
       socket.emit("terminal:started", terminal);
-      reply({ ok: true, terminal });
+      return { ok: true, terminal };
+    })();
+
+    startingSockets.set(socket.id, startPromise);
+
+    try {
+      const outcome = await startPromise;
+      reply(outcome);
     } catch (error: any) {
       const terminalError: TerminalErrorPayload =
         error instanceof TerminalTargetError
@@ -220,11 +253,14 @@ export function registerTerminalSocketHandlers(socket: TerminalSocket): void {
     const cols = normalizeSize(payload.cols, env.terminalDefaultCols);
     const rows = normalizeSize(payload.rows, env.terminalDefaultRows);
 
+    // terminal:start is async, so a resize can legitimately arrive before the
+    // PTY is registered. The start payload already carries the fitted size, so
+    // such a resize is a harmless ordering race - ignore it instead of
+    // surfacing an error to the client.
     if (!terminalService.resize(socket.id, cols, rows)) {
-      emitError(socket, {
-        code: "TERMINAL_NOT_STARTED",
-        message: "Start a terminal before resizing it.",
-      });
+      console.warn(
+        `Ignoring terminal:resize for ${socket.id}: no active terminal (start may still be in flight).`,
+      );
     }
   });
 
