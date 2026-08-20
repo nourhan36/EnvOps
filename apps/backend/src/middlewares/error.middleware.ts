@@ -18,7 +18,13 @@ export const errorHandler = (
   const statusCode = err instanceof AppError ? err.statusCode : 500;
   const message = err.message || "Internal Server Error";
 
-  return res.status(statusCode).json({
+  const body: Record<string, unknown> = {
     message: message,
-  });
+  };
+
+  if (err.details) {
+    body.details = err.details;
+  }
+
+  return res.status(statusCode).json(body);
 };

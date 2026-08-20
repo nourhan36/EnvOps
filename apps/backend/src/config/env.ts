@@ -66,7 +66,7 @@ export const env = {
     "envops-dev-cluster",
   kubernetesProvisionTimeoutMs: readPositiveInteger(
     "KUBERNETES_PROVISION_TIMEOUT_MS",
-    120_000,
+    300_000,
   ),
   evictionIntervalMs: readPositiveInteger("EVICTION_INTERVAL_MS", 60_000),
   sandboxPodSelector:
