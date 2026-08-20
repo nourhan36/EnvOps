@@ -1,13 +1,6 @@
 name: Terraform AWS Infrastructure
 
 on:
-  push:
-    branches:
-      - terraform/testing
-    paths:
-      - "Terraform/**"
-      - ".github/workflows/terraform.yml"
-
   workflow_dispatch:
 
 jobs:
