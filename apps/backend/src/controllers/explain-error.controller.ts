@@ -33,9 +33,17 @@ export async function explainError(req: Request<{ id: string }>, res: Response) 
     stderr = captured.stderr;
   }
 
+  // Prompt-created sandboxes have no template; synthesize an environment label
+  // from the stored image so the error interceptor still gets context.
+  const template = sandbox.template ?? {
+    displayName: sandbox.dockerImage ?? "Dynamic sandbox",
+    dockerImage: sandbox.dockerImage ?? "unknown",
+    securityMode: sandbox.securityMode,
+  };
+
   const result = await errorInterceptorService.explain({
     sandbox: {
-      template: sandbox.template,
+      template,
       resourceLimits: sandbox.resourceLimits as { cpu?: string; memory?: string } | null,
       ttlMinutes: sandbox.ttlMinutes,
     },

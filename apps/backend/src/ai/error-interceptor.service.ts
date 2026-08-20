@@ -6,7 +6,7 @@ import { parseExplanation } from "./llm.response";
 export interface ExplainTemplate {
   displayName: string;
   dockerImage: string;
-  privileged?: boolean;
+  securityMode?: string;
 }
 
 export interface ExplainSandbox {
@@ -58,12 +58,14 @@ export interface RetrievedContext {
 
 export class TemplateContextRetriever implements ContextRetriever {
   async retrieve(input: ExplainErrorInput): Promise<RetrievedContext> {
-    const { displayName, dockerImage, privileged } = input.sandbox.template;
+    const { displayName, dockerImage, securityMode } = input.sandbox.template;
     const { resourceLimits, ttlMinutes } = input.sandbox;
 
     const details: string[] = [`image ${dockerImage}`];
-    if (privileged) {
+    if (securityMode === "privileged") {
       details.push("privileged access");
+    } else if (securityMode === "root") {
+      details.push("runs as root");
     }
     if (resourceLimits?.cpu || resourceLimits?.memory) {
       details.push(

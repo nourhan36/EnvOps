@@ -9,6 +9,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/// Security posture applied to a sandbox pod's security context.
+/// - hardened: non-root (uid 1000), no capabilities, no privilege escalation.
+/// - root: runs as root but NOT privileged (enough for apt-get, DB entrypoints).
+/// - privileged: root + privileged pod (host device/cgroup access) - trusted runtime images only.
+enum SecurityMode {
+  hardened
+  root
+  privileged
+}
+
 /// Application user account
 /// Users can own login sessions and one or more provisioned sandboxes
 model User {
@@ -54,15 +64,19 @@ model SandboxTemplate {
   defaultLimits     Json      @map("default_limits")
   /// Default sandbox lifetime in minutes before expiration
   defaultTtlMinutes Int       @default(60) @map("default_ttl_minutes")
-  /// Marks images that must run as root with privileged access (e.g. Docker-in-Docker, k3s).
-  /// Relaxes the hardened security context - use only for trusted templates.
-  privileged        Boolean   @default(false)
+  /// Security posture for the pod: hardened (default), root, or privileged.
+  /// privileged relaxes the security context - use only for trusted templates
+  /// such as Docker-in-Docker or k3s.
+  securityMode      SecurityMode @default(hardened) @map("security_mode")
   /// Optional pod command (JSON array) that overrides the default "sleep infinity".
   /// Required by runtime images such as docker:dind and rancher/k3s.
   command           Json?
   /// Optional pod args (JSON array) passed to the image entrypoint.
   /// Preserves image ENTRYPOINT semantics (e.g. rancher/k3s expects ["server", ...]).
   args              Json?
+  /// Optional pod environment variables (JSON array of { name, value }) required
+  /// by runtime images such as postgres/mysql entrypoints.
+  env               Json?
   /// Allows templates to be disabled without deleting historical references
   isActive          Boolean   @default(true) @map("is_active")
   createdAt         DateTime  @default(now()) @map("created_at")
@@ -79,9 +93,14 @@ model Sandbox {
   userId         String          @map("user_id")
   /// User who requested or owns the sandbox
   user           User            @relation(fields: [userId], references: [id])
-  templateId     String          @map("template_id")
+  /// Template used to provision this sandbox; null for prompt-created (dynamic image) sandboxes
+  templateId     String?         @map("template_id")
   /// Template used to provision this sandbox
-  template       SandboxTemplate @relation(fields: [templateId], references: [id])
+  template       SandboxTemplate? @relation(fields: [templateId], references: [id])
+  /// Actual container image for this sandbox (the template image, or the LLM-extracted image for prompt-created sandboxes)
+  dockerImage    String?         @map("docker_image")
+  /// Effective security posture applied to the pod at provision time
+  securityMode   SecurityMode    @default(hardened) @map("security_mode")
   /// Kubernetes namespace or isolation boundary assigned to this sandbox
   namespace      String
   /// Lifecycle state, for example provisioning, running, failed, or deleted
