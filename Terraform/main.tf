@@ -65,7 +65,7 @@ module "efs" {
 
 
 module "ecr" {
-  source = "./modules/ECR"
+  source = "./Modules/ECR"
   project_name   = var.project_name
   node_role_arn  = module.eks.node_role_arn
   images_to_keep = 10
@@ -73,12 +73,17 @@ module "ecr" {
 }
 
 module "jenkins_agent_irsa" {
-  source = "./modules/IRSA"
+  source = "./Modules/IRSA"
 
   name              = "jenkins-agent-role"
-  oidc_provider_arn = module.eks.oidc_arn
-  oidc_issuer       = replace(module.eks.oidc_url, "https://", "")
+  oidc_provider_arn = module.eks.oidc_provider_arn
+  oidc_issuer       = module.eks.oidc_provider_url
   namespace         = "cicd"
   service_account   = "jenkins-agent-sa"
-  policy_arn        = module.iam_policy.jenkins_agent_policy
+  policy_arn        = module.iam.jenkins_agent_policy_arn
+}
+
+module "nginx_ingress" {
+  source = "./Modules/NginxIngress"
+
 }
