@@ -6,6 +6,8 @@ export type SandboxStatus =
   | 'expired'
   | 'deleted';
 
+export type SecurityMode = 'hardened' | 'root' | 'privileged';
+
 export interface SandboxTemplate {
   id: string;
   name: string;
@@ -14,7 +16,7 @@ export interface SandboxTemplate {
   dockerImage: string;
   defaultLimits: Record<string, string>;
   defaultTtlMinutes: number;
-  privileged: boolean;
+  securityMode: SecurityMode;
   command?: string[] | null;
   args?: string[] | null;
   isActive: boolean;
@@ -34,8 +36,13 @@ export interface SandboxCreateOptions {
 export interface Sandbox {
   id: string;
   userId: string;
-  templateId: string;
-  template: SandboxTemplate;
+  templateId: string | null;
+  /** Resolved template; null for prompt-created (dynamic image) sandboxes. */
+  template: SandboxTemplate | null;
+  /** Actual container image: template image, or the LLM-extracted image for prompt-created sandboxes. */
+  dockerImage?: string | null;
+  /** Effective security posture applied at provision time. */
+  securityMode?: SecurityMode;
   namespace: string;
   status: SandboxStatus;
   resourceLimits?: Record<string, string> | null;
@@ -95,17 +102,3 @@ export interface ExplainErrorUnavailable {
 }
 
 export type ExplainErrorResponse = ExplainErrorAvailable | ExplainErrorUnavailable;
-
-export interface LabGenerationRequest {
-  prompt: string;
-  difficulty?: 'beginner' | 'intermediate' | 'advanced';
-  technologies?: string[];
-}
-
-export interface LabGenerationResult {
-  id: string;
-  status: 'pending' | 'generating' | 'ready' | 'failed';
-  title: string;
-  description?: string;
-  sandboxId?: string;
-}

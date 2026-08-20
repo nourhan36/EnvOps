@@ -16,7 +16,7 @@ const sandbox: Sandbox = {
     dockerImage: 'hashicorp/terraform:1.7',
     defaultLimits: { cpu: '250m', memory: '256Mi' },
     defaultTtlMinutes: 120,
-    privileged: false,
+    securityMode: 'hardened',
     command: null,
     isActive: true,
     createdAt: '2026-07-21T12:00:00.000Z',
@@ -56,6 +56,37 @@ describe('SandboxCard', () => {
     );
 
     expect(screen.getByText('1 CPU · 1Gi')).toBeInTheDocument();
+  });
+
+  it('renders a prompt-created sandbox with no template using its docker image', () => {
+    const dynamic: Sandbox = {
+      ...sandbox,
+      templateId: null,
+      template: null,
+      dockerImage: 'python:3.11-slim',
+      resourceLimits: { cpu: '500m', memory: '512Mi' },
+    };
+    render(<SandboxCard sandbox={dynamic} onConnect={vi.fn()} onDelete={vi.fn()} />);
+
+    expect(screen.getByRole('heading', { name: 'python:3.11-slim' })).toBeInTheDocument();
+    expect(screen.getAllByText('python:3.11-slim').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('500m CPU · 512Mi')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Connect' })).toBeEnabled();
+  });
+
+  it('shows a root badge for allowlisted dynamic sandboxes running as root', () => {
+    const dynamic: Sandbox = {
+      ...sandbox,
+      templateId: null,
+      template: null,
+      dockerImage: 'postgres:16-alpine',
+      securityMode: 'root',
+      resourceLimits: { cpu: '500m', memory: '1Gi' },
+    };
+    render(<SandboxCard sandbox={dynamic} onConnect={vi.fn()} onDelete={vi.fn()} />);
+
+    expect(screen.getByRole('heading', { name: 'postgres:16-alpine' })).toBeInTheDocument();
+    expect(screen.getByText('root', { exact: true })).toBeInTheDocument();
   });
 
   it('sends the sandbox id through connect and delete actions', async () => {
@@ -153,5 +184,19 @@ describe('SandboxCard', () => {
     expect(screen.getByText('expired')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Connect' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Delete sandbox' })).toBeEnabled();
+  });
+
+  it('hides the TTL countdown on failed sandboxes', () => {
+    render(
+      <SandboxCard
+        sandbox={{ ...sandbox, status: 'failed' }}
+        onConnect={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('failed')).toBeInTheDocument();
+    expect(screen.queryByText(/TTL:/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Connect' })).toBeDisabled();
   });
 });

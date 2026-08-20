@@ -15,10 +15,21 @@ vi.mock("./orchestrator.service", () => ({
   deleteSandboxResources: vi.fn(),
 }));
 
+vi.mock("./provision.service", () => ({
+  provisionService: {
+    extract: vi.fn(),
+  },
+}));
+
 import { prisma } from "../db/client";
 import { provisionSandbox } from "./orchestrator.service";
-import { createSandbox } from "./sandbox.service";
-import { NotFoundError } from "../errors/AppError";
+import { provisionService } from "./provision.service";
+import { createSandbox, createSandboxFromPrompt } from "./sandbox.service";
+import {
+  NotFoundError,
+  ProvisionExtractionError,
+  ProvisioningError,
+} from "../errors/AppError";
 import { RESOURCE_BOUNDS } from "../constants/sandbox-resources";
 
 const template = {
@@ -28,7 +39,7 @@ const template = {
   dockerImage: "docker:dind",
   defaultLimits: { cpu: "1", memory: "1Gi" },
   defaultTtlMinutes: 120,
-  privileged: true,
+  securityMode: "privileged",
   command: ["/bin/sh", "-c", "dockerd-entrypoint.sh & sleep infinity"],
 };
 
@@ -86,6 +97,7 @@ describe("createSandbox", () => {
         data: expect.objectContaining({
           resourceLimits: { cpu: "1", memory: "1Gi" },
           ttlMinutes: 120,
+          securityMode: "privileged",
         }),
       }),
     );
@@ -93,7 +105,7 @@ describe("createSandbox", () => {
     expect(provisionSandbox).toHaveBeenCalledWith({
       dockerImage: "docker:dind",
       limits: { cpu: "1", memory: "1Gi" },
-      privileged: true,
+      securityMode: "privileged",
       command: ["/bin/sh", "-c", "dockerd-entrypoint.sh & sleep infinity"],
     });
   });
@@ -146,12 +158,12 @@ describe("createSandbox", () => {
     );
   });
 
-  it("passes the template-driven privileged and command flags to the orchestrator", async () => {
+  it("passes the template-driven security mode and command flags to the orchestrator", async () => {
     await createSandbox(template.id, "user-1");
 
     expect(provisionSandbox).toHaveBeenCalledWith(
       expect.objectContaining({
-        privileged: true,
+        securityMode: "privileged",
         command: ["/bin/sh", "-c", "dockerd-entrypoint.sh & sleep infinity"],
       }),
     );
@@ -160,7 +172,7 @@ describe("createSandbox", () => {
   it("keeps hardened security for non-privileged templates", async () => {
     vi.mocked(prisma.sandboxTemplate.findUnique).mockResolvedValue({
       ...template,
-      privileged: false,
+      securityMode: "hardened",
       command: null,
       args: null,
     } as never);
@@ -168,7 +180,30 @@ describe("createSandbox", () => {
     await createSandbox(template.id, "user-1");
 
     expect(provisionSandbox).toHaveBeenCalledWith(
-      expect.objectContaining({ privileged: false, command: undefined, args: undefined }),
+      expect.objectContaining({ securityMode: "hardened", command: undefined, args: undefined }),
+    );
+  });
+
+  it("passes root mode for root templates", async () => {
+    vi.mocked(prisma.sandboxTemplate.findUnique).mockResolvedValue({
+      ...template,
+      name: "postgres",
+      dockerImage: "postgres:16-alpine",
+      securityMode: "root",
+      command: ["docker-entrypoint.sh"],
+      args: ["postgres"],
+      env: [{ name: "POSTGRES_PASSWORD", value: "postgres" }],
+    } as never);
+
+    await createSandbox(template.id, "user-1");
+
+    expect(provisionSandbox).toHaveBeenCalledWith(
+      expect.objectContaining({
+        securityMode: "root",
+        command: ["docker-entrypoint.sh"],
+        args: ["postgres"],
+        env: [{ name: "POSTGRES_PASSWORD", value: "postgres" }],
+      }),
     );
   });
 
@@ -193,10 +228,217 @@ describe("createSandbox", () => {
     );
   });
 
-  it("marks the sandbox FAILED when provisioning fails", async () => {
+  it("marks the sandbox FAILED and wraps the error as a 422 when provisioning fails", async () => {
     vi.mocked(provisionSandbox).mockRejectedValue(new Error("pod failed"));
 
-    await expect(createSandbox(template.id, "user-1")).rejects.toThrow("pod failed");
+    const promise = createSandbox(template.id, "user-1");
+
+    await expect(promise).rejects.toBeInstanceOf(ProvisioningError);
+    await expect(promise).rejects.toMatchObject({ statusCode: 422 });
+    await expect(promise).rejects.toThrow("pod failed");
+
+    expect(prisma.sandbox.update).toHaveBeenCalledWith({
+      where: { id: "sandbox-1" },
+      data: { status: "failed" },
+    });
+  });
+});
+
+describe("createSandboxFromPrompt", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockCreate();
+    mockProvision();
+    vi.mocked(prisma.sandbox.update).mockImplementation(({ data }: any) =>
+      Promise.resolve({
+        id: "sandbox-1",
+        ...data,
+      } as never),
+    );
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function mockReady(image: string, overrides: Record<string, unknown> = {}) {
+    vi.mocked(provisionService.extract).mockResolvedValue({
+      status: "ready",
+      parameters: {
+        image,
+        cpu: "500m",
+        memory: "512Mi",
+        ttl_minutes: 30,
+        ...overrides,
+      },
+      model: "deepseek.test",
+    } as never);
+  }
+
+  it("provisions the extracted image directly with a null templateId", async () => {
+    mockReady("python:3.11-slim", { cpu: "1", memory: "2Gi", ttl_minutes: 45 });
+
+    await createSandboxFromPrompt("spin up python 3.11 with 1 core and 2GB for 45 minutes", "user-1");
+
+    expect(prisma.sandbox.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          templateId: null,
+          dockerImage: "python:3.11-slim",
+          securityMode: "hardened",
+          resourceLimits: { cpu: "1", memory: "2Gi" },
+          ttlMinutes: 45,
+        }),
+      }),
+    );
+
+    expect(provisionSandbox).toHaveBeenCalledWith({
+      dockerImage: "python:3.11-slim",
+      limits: { cpu: "1", memory: "2Gi" },
+      securityMode: "hardened",
+    });
+  });
+
+  it("provisions allowlisted database images as root with the runtime entrypoint", async () => {
+    mockReady("postgres", { ttl_minutes: 60 });
+
+    await createSandboxFromPrompt("spin up a postgres database", "user-1");
+
+    expect(prisma.sandbox.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          templateId: null,
+          dockerImage: "postgres:16-alpine",
+          securityMode: "root",
+        }),
+      }),
+    );
+
+    expect(provisionSandbox).toHaveBeenCalledWith({
+      dockerImage: "postgres:16-alpine",
+      limits: { cpu: "500m", memory: "512Mi" },
+      securityMode: "root",
+      command: ["docker-entrypoint.sh"],
+      args: ["postgres"],
+      env: [{ name: "POSTGRES_PASSWORD", value: "postgres" }],
+    });
+  });
+
+  it("keeps an explicit tag on allowlisted images but still applies root mode", async () => {
+    mockReady("postgres:17", { ttl_minutes: 60 });
+
+    await createSandboxFromPrompt("postgres 17", "user-1");
+
+    expect(prisma.sandbox.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ dockerImage: "postgres:17", securityMode: "root" }),
+      }),
+    );
+    expect(provisionSandbox).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dockerImage: "postgres:17",
+        securityMode: "root",
+        command: ["docker-entrypoint.sh"],
+      }),
+    );
+  });
+
+  it("matches allowlisted images with a registry prefix", async () => {
+    mockReady("docker.io/library/mysql:8", { ttl_minutes: 60 });
+
+    await createSandboxFromPrompt("mysql", "user-1");
+
+    expect(provisionSandbox).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dockerImage: "mysql:8",
+        securityMode: "root",
+        command: ["docker-entrypoint.sh"],
+        args: ["mysqld"],
+      }),
+    );
+  });
+
+  it("canonicalizes common misnomers like nodejs to the real repo and stays hardened", async () => {
+    mockReady("nodejs:latest", { cpu: "500m", memory: "1Gi", ttl_minutes: 60 });
+
+    await createSandboxFromPrompt("nodejs with half a cpu and 1GB for an hour", "user-1");
+
+    expect(prisma.sandbox.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          templateId: null,
+          dockerImage: "node:latest",
+          securityMode: "hardened",
+          resourceLimits: { cpu: "500m", memory: "1Gi" },
+          ttlMinutes: 60,
+        }),
+      }),
+    );
+
+    expect(provisionSandbox).toHaveBeenCalledWith({
+      dockerImage: "node:latest",
+      limits: { cpu: "500m", memory: "1Gi" },
+      securityMode: "hardened",
+    });
+  });
+
+  it("canonicalizes aliases to allowlisted runtimes and applies root mode", async () => {
+    mockReady("mongodb", { ttl_minutes: 60 });
+
+    await createSandboxFromPrompt("mongodb", "user-1");
+
+    expect(provisionSandbox).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dockerImage: "mongo:7",
+        securityMode: "root",
+        command: ["docker-entrypoint.sh"],
+        args: ["mongod"],
+      }),
+    );
+  });
+
+  it("clamps prompt-derived resources and TTL to platform bounds", async () => {
+    mockReady("ubuntu:latest", { cpu: "32", memory: "64Gi", ttl_minutes: 100_000 });
+
+    await createSandboxFromPrompt("huge machine", "user-1");
+
+    expect(prisma.sandbox.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          resourceLimits: {
+            cpu: expect.stringMatching(/^(4000m|4)$/),
+            memory: "8192Mi",
+          },
+          ttlMinutes: RESOURCE_BOUNDS.ttlMinutes.max,
+        }),
+      }),
+    );
+  });
+
+  it("throws a ProvisionExtractionError without creating a record when extraction fails", async () => {
+    vi.mocked(provisionService.extract).mockResolvedValue({
+      status: "failed",
+      reason: "bad_response",
+      issues: ["The model output was not valid JSON."],
+      retryable: true,
+    } as never);
+
+    await expect(createSandboxFromPrompt("hello", "user-1")).rejects.toBeInstanceOf(
+      ProvisionExtractionError,
+    );
+    expect(prisma.sandbox.create).not.toHaveBeenCalled();
+    expect(provisionSandbox).not.toHaveBeenCalled();
+  });
+
+  it("marks the sandbox FAILED and wraps the error as a 422 when provisioning a dynamic image fails", async () => {
+    mockReady("alpine:latest");
+    vi.mocked(provisionSandbox).mockRejectedValue(new Error("image pull failed"));
+
+    const promise = createSandboxFromPrompt("alpine", "user-1");
+
+    await expect(promise).rejects.toBeInstanceOf(ProvisioningError);
+    await expect(promise).rejects.toMatchObject({ statusCode: 422 });
+    await expect(promise).rejects.toThrow("image pull failed");
 
     expect(prisma.sandbox.update).toHaveBeenCalledWith({
       where: { id: "sandbox-1" },
