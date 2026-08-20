@@ -29,13 +29,13 @@ module "irsa" {
 
   oidc_provider_arn = module.eks.oidc_provider_arn
   oidc_issuer       = module.eks.oidc_provider_url
-  service_account = "eso-secrets-sa"
-  namespace       = "envops-core"
+  service_account   = "eso-secrets-sa"
+  namespace         = "envops-core"
 }
 
 module "secrets" {
   source = "./Modules/Secrets"
-  
+
   namespace            = "envops-core"
   service_account_name = "eso-secrets-sa"
   irsa_role_arn        = module.irsa.role_arn
@@ -46,19 +46,19 @@ module "efs_csi_irsa" {
 
   name              = "efs-csi"
   oidc_provider_arn = module.eks.oidc_provider_arn
-  oidc_issuer = module.eks.oidc_provider_url 
+  oidc_issuer       = module.eks.oidc_provider_url
   namespace         = "kube-system"
   service_account   = "efs-csi-controller-sa"
   policy_arn        = "arn:aws:iam::aws:policy/service-role/AmazonEFSCSIDriverPolicy"
 }
 
 module "efs" {
-  source = "./Modules/EFS"
-  service_account_name = "efs-csi-controller-sa"
-  irsa_role_arn = module.efs_csi_irsa.role_arn
-  namespace= "kube-system"
-  vpc_id = module.vpc.vpc_id
-  private_subnets = module.vpc.private_subnet_ids
+  source                = "./Modules/EFS"
+  service_account_name  = "efs-csi-controller-sa"
+  irsa_role_arn         = module.efs_csi_irsa.role_arn
+  namespace             = "kube-system"
+  vpc_id                = module.vpc.vpc_id
+  private_subnets       = module.vpc.private_subnet_ids
   eks_security_group_id = module.eks.cluster_security_group_id
-  depends_on = [module.eks, module.efs_csi_irsa]
+  depends_on            = [module.eks, module.efs_csi_irsa]
 }
