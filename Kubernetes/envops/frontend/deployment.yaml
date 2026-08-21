@@ -50,14 +50,14 @@ spec:
               memory: 128Mi
           readinessProbe:
             httpGet:
-              path: /
+              path: /healthz
               port: http
             periodSeconds: 10
             timeoutSeconds: 2
             failureThreshold: 3
           livenessProbe:
             httpGet:
-              path: /
+              path: /healthz
               port: http
             periodSeconds: 20
             timeoutSeconds: 2
