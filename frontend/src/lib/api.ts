@@ -46,25 +46,25 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  getHealth: () => request<{ status: string }>('/api/health'),
-  getTemplates: () => request<SandboxTemplate[]>('/api/templates'),
-  getSandboxes: () => request<Sandbox[]>('/api/sandboxes'),
-  getSandbox: (id: string) => request<Sandbox>(`/api/sandboxes/${id}`),
+  getHealth: () => request<{ status: string }>('/health'),
+  getTemplates: () => request<SandboxTemplate[]>('/templates'),
+  getSandboxes: () => request<Sandbox[]>('/sandboxes'),
+  getSandbox: (id: string) => request<Sandbox>(`/sandboxes/${id}`),
   createSandbox: (templateId: string, options?: SandboxCreateOptions) =>
-    request<SandboxMutationResponse>('/api/sandboxes', {
+    request<SandboxMutationResponse>('/sandboxes', {
       method: 'POST',
       body: JSON.stringify({ templateId, ...options }),
     }),
   createSandboxFromPrompt: (prompt: string) =>
-    request<SandboxMutationResponse>('/api/sandboxes/from-prompt', {
+    request<SandboxMutationResponse>('/sandboxes/from-prompt', {
       method: 'POST',
       body: JSON.stringify({ prompt }),
     }),
   deleteSandbox: (id: string) =>
-    request<SandboxMutationResponse>(`/api/sandboxes/${id}`, { method: 'DELETE' }),
-  getDashboardStats: () => request<DashboardStats>('/api/dashboard'),
+    request<SandboxMutationResponse>(`/sandboxes/${id}`, { method: 'DELETE' }),
+  getDashboardStats: () => request<DashboardStats>('/dashboard'),
   explainError: (sandboxId: string, body?: ExplainErrorRequest) =>
-    request<ExplainErrorResponse>(`/api/sandboxes/${sandboxId}/explain-error`, {
+    request<ExplainErrorResponse>(`/sandboxes/${sandboxId}/explain-error`, {
       method: 'POST',
       body: JSON.stringify(body ?? {}),
     }),
