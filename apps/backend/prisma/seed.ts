@@ -14,6 +14,7 @@ async function main() {
       email: demoUserEmail,
     },
   });
+  
 
   const templates: Prisma.SandboxTemplateUncheckedCreateInput[] = [
     {
