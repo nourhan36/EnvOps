@@ -76,11 +76,12 @@ const options: swaggerJsdoc.Options = {
             dockerImage: { type: "string", example: "ubuntu:22.04" },
             defaultLimits: { $ref: "#/components/schemas/ResourceLimits" },
             defaultTtlMinutes: { type: "integer", example: 60 },
-            privileged: {
-              type: "boolean",
-              example: false,
+            securityMode: {
+              type: "string",
+              enum: ["hardened", "root", "privileged"],
+              example: "hardened",
               description:
-                "Relaxes the hardened security context (root + privileged). Only enabled on trusted runtime templates such as Docker-in-Docker or k3s.",
+                "Security posture applied to the pod. 'hardened' is the non-root default; 'root' runs as root without privileged access (database entrypoints, apt-get); 'privileged' is root + host access and is only enabled on trusted runtime templates such as Docker-in-Docker or k3s.",
             },
             command: {
               type: "array",
@@ -95,6 +96,19 @@ const options: swaggerJsdoc.Options = {
               nullable: true,
               description:
                 "Optional pod args passed to the image entrypoint (preserves ENTRYPOINT semantics).",
+            },
+            env: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  name: { type: "string" },
+                  value: { type: "string" },
+                },
+              },
+              nullable: true,
+              description:
+                "Optional pod environment variables required by runtime entrypoints (e.g. POSTGRES_PASSWORD).",
             },
             isActive: { type: "boolean", example: true },
             createdAt: { type: "string", format: "date-time" },
@@ -130,6 +144,13 @@ const options: swaggerJsdoc.Options = {
                 "deleted",
               ],
               example: "running",
+            },
+            securityMode: {
+              type: "string",
+              enum: ["hardened", "root", "privileged"],
+              example: "hardened",
+              description:
+                "Effective security posture applied to this sandbox at provision time.",
             },
             resourceLimits: {
               allOf: [{ $ref: "#/components/schemas/ResourceLimits" }],

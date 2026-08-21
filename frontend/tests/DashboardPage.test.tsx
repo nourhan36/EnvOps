@@ -24,7 +24,7 @@ const template: SandboxTemplate = {
   dockerImage: 'ubuntu:22.04',
   defaultLimits: { cpu: '250m', memory: '256Mi' },
   defaultTtlMinutes: 120,
-  privileged: false,
+  securityMode: 'hardened',
   command: null,
   isActive: true,
   createdAt: '2026-07-21T12:00:00.000Z',

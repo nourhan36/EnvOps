@@ -36,7 +36,7 @@ export const createSandboxSchema = z.object({
         .max(RESOURCE_BOUNDS.ttlMinutes.max, `ttlMinutes must be at most ${RESOURCE_BOUNDS.ttlMinutes.max}`)
         .optional(),
     })
-    // Rejects unknown fields (e.g. privileged, command, dockerImage) so a
+    // Rejects unknown fields (e.g. securityMode, command, dockerImage) so a
     // client can never self-escalate privileges or pick an arbitrary image.
     .strict(),
 });
