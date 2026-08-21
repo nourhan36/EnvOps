@@ -1,0 +1,105 @@
+pipeline {
+    agent {
+        label 'jenkins-agent'
+    }
+
+    environment {
+        AWS_REGION = 'us-east-1'
+        AWS_ACCOUNT_ID = '524558748637'
+
+        ECR_REPOSITORY = 'envops-dev-cluster/backend'
+
+        IMAGE_TAG = "${BUILD_NUMBER}"
+
+        ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+
+        IMAGE = "${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Check Backend Changes') {
+            steps {
+                script {
+                    def changedFiles = sh(
+                        script: '''
+                            git diff --name-only HEAD~1 HEAD
+                        ''',
+                        returnStdout: true
+                    ).trim()
+
+                    echo "Changed files:"
+                    echo changedFiles
+
+                    if (!changedFiles.split('\n').any {
+                        it.startsWith('apps/backend/')
+                    }) {
+                        currentBuild.result = 'NOT_BUILT'
+                        error("No backend changes detected.")
+                    }
+                }
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                container('jnlp') {
+                    dir('apps/backend') {
+                        sh 'npm ci'
+                    }
+                }
+            }
+        }
+
+        stage('Build Backend') {
+            steps {
+                container('jnlp') {
+                    dir('apps/backend') {
+                        sh 'npm run build'
+                    }
+                }
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                container('jnlp') {
+                    dir('apps/backend') {
+                        sh 'npm test'
+                    }
+                }
+            }
+        }
+
+        stage('Build & Push Image') {
+            steps {
+                container('kaniko') {
+                    sh '''
+                        /kaniko/executor \
+                          --context ${WORKSPACE}/apps/backend \
+                          --dockerfile ${WORKSPACE}/apps/backend/Dockerfile \
+                          --destination ${IMAGE} \
+                          --destination ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Backend image pushed successfully:"
+            echo "${IMAGE}"
+        }
+
+        failure {
+            echo "Backend pipeline failed."
+        }
+    }
+}
