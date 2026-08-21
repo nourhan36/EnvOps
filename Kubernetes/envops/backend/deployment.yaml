@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: envops-backend
+  namespace: envops-core
+  labels:
+    app.kubernetes.io/name: envops-backend
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: envops
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: envops-backend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: envops-backend
+        app.kubernetes.io/component: api
+        app.kubernetes.io/part-of: envops
+    spec:
+      serviceAccountName: envops-backend
+      automountServiceAccountToken: true
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: backend
+          image: REPLACE_WITH_ECR_BACKEND_IMAGE
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: PORT
+              value: "3000"
+            - name: APP_ORIGINS
+              value: "https://REPLACE_WITH_FRONTEND_HOST"
+            - name: KUBERNETES_TARGET
+              value: "aws"
+            - name: SANDBOX_POD_SELECTOR
+              value: "app=sandbox"
+            - name: EVICTION_INTERVAL_MS
+              value: "60000"
+            - name: TERMINAL_SHELL
+              value: "/bin/sh"
+          envFrom:
+            - secretRef:
+                name: envops-backend-secrets
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            failureThreshold: 30
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 10"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: false
