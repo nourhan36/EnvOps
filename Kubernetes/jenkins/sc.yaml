@@ -5,7 +5,7 @@ metadata:
 provisioner: efs.csi.aws.com
 parameters:
   provisioningMode: efs-ap
-  fileSystemId: fs-0ae7aa0b48e65c42d #need to change from fixed value to dynamic one (enhancement)
+  fileSystemId: fs-0c63d3d084ac73447 #need to change from fixed value to dynamic one (enhancement)
   directoryPerms: "700"
 reclaimPolicy: Retain
 volumeBindingMode: Immediate
