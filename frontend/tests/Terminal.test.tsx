@@ -49,6 +49,10 @@ function getStartCalls(socket: ReturnType<typeof createFakeSocket>) {
   return socket.emit.mock.calls.filter(([event]) => event === 'terminal:start');
 }
 
+function getResizeCalls(socket: ReturnType<typeof createFakeSocket>) {
+  return socket.emit.mock.calls.filter(([event]) => event === 'terminal:resize');
+}
+
 describe('Terminal', () => {
   beforeEach(() => {
     class ResizeObserverMock {
@@ -108,5 +112,40 @@ describe('Terminal', () => {
     act(() => socket.emitEvent('connect'));
 
     expect(getStartCalls(socket)).toHaveLength(1);
+  });
+
+  it('does not emit resize before the terminal has started', () => {
+    const socket = createFakeSocket(true);
+    render(<Terminal socket={socket as never} sandboxId="sandbox-42" />);
+
+    act(() => window.dispatchEvent(new Event('resize')));
+
+    expect(getResizeCalls(socket)).toHaveLength(0);
+  });
+
+  it('syncs the size when the terminal starts and emits resize afterwards', () => {
+    const socket = createFakeSocket(true);
+    render(<Terminal socket={socket as never} sandboxId="sandbox-42" />);
+
+    act(() => socket.emitEvent('terminal:started', {}));
+    expect(getResizeCalls(socket)).toHaveLength(1);
+    expect(getResizeCalls(socket)[0][1]).toEqual({ cols: 80, rows: 24 });
+
+    act(() => window.dispatchEvent(new Event('resize')));
+    expect(getResizeCalls(socket)).toHaveLength(2);
+    expect(getResizeCalls(socket)[1][1]).toEqual({ cols: 80, rows: 24 });
+  });
+
+  it('stops emitting resize once the terminal has exited', () => {
+    const socket = createFakeSocket(true);
+    render(<Terminal socket={socket as never} sandboxId="sandbox-42" />);
+
+    act(() => socket.emitEvent('terminal:started', {}));
+    const resizesBeforeExit = getResizeCalls(socket).length;
+
+    act(() => socket.emitEvent('terminal:exit', { exitCode: 0 }));
+    act(() => window.dispatchEvent(new Event('resize')));
+
+    expect(getResizeCalls(socket)).toHaveLength(resizesBeforeExit);
   });
 });

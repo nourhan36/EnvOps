@@ -1,0 +1,104 @@
+
+name: Terraform Destroy
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  terraform-destroy:
+    name: Terraform Destroy
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: Terraform
+
+    steps:
+
+      - name: Checkout terraform/testing
+        uses: actions/checkout@v4
+        with:
+          ref: terraform/testing
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Verify AWS Identity
+        run: aws sts get-caller-identity
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Get GitHub Runner Public IP
+        id: runner-ip
+        run: |
+          RUNNER_IP=$(curl -s https://checkip.amazonaws.com)
+
+          echo "GitHub Actions runner IP: ${RUNNER_IP}"
+
+          echo "runner_ip=${RUNNER_IP}" >> "$GITHUB_OUTPUT"
+
+      - name: Allow GitHub Runner to Access EKS
+        env:
+          RUNNER_IP: ${{ steps.runner-ip.outputs.runner_ip }}
+        run: |
+          echo "Adding ${RUNNER_IP}/32 to EKS public access..."
+
+          CURRENT_CIDRS=$(aws eks describe-cluster \
+            --name envops-dev-cluster \
+            --region us-east-1 \
+            --query 'cluster.resourcesVpcConfig.publicAccessCidrs' \
+            --output json)
+
+          echo "Current EKS public CIDRs:"
+          echo "$CURRENT_CIDRS"
+
+          UPDATED_CIDRS=$(echo "$CURRENT_CIDRS" | jq --arg ip "${RUNNER_IP}/32" \
+            'if index($ip) then . else . + [$ip] end')
+
+          echo "Updated EKS public CIDRs:"
+          echo "$UPDATED_CIDRS"
+
+          CIDRS=$(echo "$UPDATED_CIDRS" | jq -r 'join(",")')
+
+          aws eks update-cluster-config \
+            --name envops-dev-cluster \
+            --region us-east-1 \
+            --resources-vpc-config \
+              "endpointPublicAccess=true,endpointPrivateAccess=true,publicAccessCidrs=${CIDRS}"
+
+          echo "Waiting for EKS endpoint configuration..."
+
+          aws eks wait cluster-active \
+            --name envops-dev-cluster \
+            --region us-east-1
+
+      - name: Verify EKS Access
+        run: |
+          aws eks describe-cluster \
+            --name envops-dev-cluster \
+            --region us-east-1 \
+            --query 'cluster.resourcesVpcConfig.{
+              EndpointPublicAccess:endpointPublicAccess,
+              EndpointPrivateAccess:endpointPrivateAccess,
+              PublicAccessCidrs:publicAccessCidrs
+            }'
+
+      - name: Terraform Init
+        run: terraform init -reconfigure
+
+      - name: Check Terraform State
+        run: terraform state list
+
+      - name: Terraform Destroy Plan
+        run: terraform plan -destroy -var-file="envs/dev.tfvars"
+
+      - name: Terraform Destroy
+        run: terraform destroy -auto-approve -var-file="envs/dev.tfvars"

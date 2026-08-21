@@ -6,6 +6,7 @@ import {
   deleteSandbox,
 } from "../controllers/sandbox.controller";
 import { explainError } from "../controllers/explain-error.controller";
+import { createSandboxFromPrompt } from "../controllers/provision.controller";
 import { validate } from "../middlewares/validate.middleware";
 import { requireAuth } from "../middlewares/auth.middleware";
 import {
@@ -13,6 +14,7 @@ import {
   sandboxIdParamSchema,
 } from "../schema/sandbox.schema";
 import { explainErrorSchema } from "../schema/explain-error.schema";
+import { createSandboxFromPromptSchema } from "../schema/provision.schema";
 
 const router = Router();
 
@@ -95,7 +97,7 @@ router.get("/:id", validate(sandboxIdParamSchema), getSandbox);
  *       Creates the database record, Kubernetes Namespace, Service, and Pod, then
  *       waits for the Pod to reach Running. Optional `resources` (CPU/memory) and
  *       `ttlMinutes` overrides are clamped to platform bounds; the image,
- *       privileged flag, and pod command always come from the template.
+ *       security mode, and pod command always come from the template.
  *     tags: [Sandboxes]
  *     requestBody:
  *       required: true
@@ -130,6 +132,56 @@ router.get("/:id", validate(sandboxIdParamSchema), getSandbox);
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.post("/", validate(createSandboxSchema), createSandbox);
+
+/**
+ * @swagger
+ * /api/sandboxes/from-prompt:
+ *   post:
+ *     summary: Provision a sandbox from a natural language description
+ *     description: >
+ *       Sends the prompt to the DeepSeek model, which extracts the provisioning
+ *       parameters (image, cpu, memory, ttl_minutes). The image is resolved to a
+ *       trusted template (unknown images fall back to Ubuntu); CPU/memory/TTL
+ *       become clamped overrides on that template before provisioning.
+ *     tags: [Sandboxes]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [prompt]
+ *             properties:
+ *               prompt:
+ *                 type: string
+ *                 description: Natural language sandbox request (e.g. "Launch ubuntu with 1 core and 2GB for 45 minutes")
+ *     responses:
+ *       201:
+ *         description: Sandbox provisioned successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/CreateSandboxResponse'
+ *       400:
+ *         description: Invalid request body
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       502:
+ *         description: The model failed to produce valid provisioning parameters
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Kubernetes provisioning or internal error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.post("/from-prompt", validate(createSandboxFromPromptSchema), createSandboxFromPrompt);
 
 /**
  * @swagger
