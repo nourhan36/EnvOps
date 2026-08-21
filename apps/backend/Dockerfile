@@ -37,9 +37,13 @@ COPY --from=production-dependencies /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma
 COPY docker-entrypoint.sh /usr/local/bin/envops-entrypoint
-RUN chmod +x /usr/local/bin/envops-entrypoint
+
+RUN sed -i 's/\r$//' /usr/local/bin/envops-entrypoint \
+    && chmod +x /usr/local/bin/envops-entrypoint
 
 ENV NODE_ENV=production
 EXPOSE 3000
-ENTRYPOINT ["envops-entrypoint"]
+
+ENTRYPOINT ["/usr/local/bin/envops-entrypoint"]
+
 CMD ["node", "dist/server.js"]

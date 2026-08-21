@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { FlaskConical, Loader2, Send, Sparkles } from 'lucide-react';
 import type { LabGenerationResult } from '@/types';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_URL = import.meta.env.VITE_API_URL ?? '';
 
 const EXAMPLE_PROMPTS = [
   'Create a Kubernetes lab where I deploy a 3-tier app with ingress and HPA',
