@@ -157,6 +157,8 @@ vite.config.ts.timestamp-*
 *.tfstate
 *.tfstate.backup
 *_override.tf
+backend-*.hcl
+floci.auto.tfvars
 
 # ==========================================
 # Misc Archives
