@@ -15,6 +15,8 @@ async function main() {
     },
   });
 
+  // Seed sandbox templates
+
   const templates: Prisma.SandboxTemplateUncheckedCreateInput[] = [
     {
       name: 'ubuntu',
