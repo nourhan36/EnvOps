@@ -33,7 +33,9 @@ services:
       POSTGRES_USER: envops_admin
       POSTGRES_PASSWORD: local_dev_password
       POSTGRES_DB: envops
-   
+    ports:
+      - "5432:5432"
+  
     volumes:
       - pgdata:/var/lib/postgresql/data
 
