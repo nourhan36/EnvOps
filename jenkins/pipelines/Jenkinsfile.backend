@@ -18,19 +18,11 @@ pipeline {
 
     stages {
 
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
-
         stage('Check Backend Changes') {
             steps {
                 script {
                     def changedFiles = sh(
-                        script: '''
-                            git diff --name-only HEAD~1 HEAD
-                        ''',
+                        script: 'git diff --name-only HEAD~1 HEAD',
                         returnStdout: true
                     ).trim()
 
@@ -49,7 +41,7 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                container('jnlp') {
+                container('node') {
                     dir('apps/backend') {
                         sh 'npm ci'
                     }
@@ -59,7 +51,7 @@ pipeline {
 
         stage('Build Backend') {
             steps {
-                container('jnlp') {
+                container('node') {
                     dir('apps/backend') {
                         sh 'npm run build'
                     }
@@ -69,7 +61,7 @@ pipeline {
 
         stage('Run Tests') {
             steps {
-                container('jnlp') {
+                container('node') {
                     dir('apps/backend') {
                         sh 'npm test'
                     }
