@@ -7,7 +7,7 @@ pipeline {
         AWS_REGION = 'us-east-1'
         AWS_ACCOUNT_ID = '524558748637'
 
-        ECR_REPOSITORY = 'envops-dev-cluster/backend'
+        ECR_REPOSITORY = 'envops-dev/backend'
 
         IMAGE_TAG = "${BUILD_NUMBER}"
 
