@@ -30,7 +30,7 @@ pipeline {
                     echo changedFiles
 
                     if (!changedFiles.split('\n').any {
-                        it.startsWith('apps/frontend/')
+                        it.startsWith('frontend/')
                     }) {
                         currentBuild.result = 'NOT_BUILT'
                         error("No frontend changes detected.")
@@ -42,7 +42,7 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 container('node') {
-                    dir('apps/frontend') {
+                    dir('frontend') {
                         sh 'npm ci'
                     }
                 }
@@ -52,7 +52,7 @@ pipeline {
         stage('Build Frontend') {
             steps {
                 container('node') {
-                    dir('apps/frontend') {
+                    dir('frontend') {
                         sh 'npm run build'
                     }
                 }
@@ -62,7 +62,7 @@ pipeline {
         stage('Run Tests') {
             steps {
                 container('node') {
-                    dir('apps/frontend') {
+                    dir('frontend') {
                         sh 'npm test'
                     }
                 }
@@ -74,8 +74,8 @@ pipeline {
                 container('kaniko') {
                     sh '''
                         /kaniko/executor \
-                          --context ${WORKSPACE}/apps/frontend \
-                          --dockerfile ${WORKSPACE}/apps/frontend/Dockerfile \
+                          --context ${WORKSPACE}/frontend \
+                          --dockerfile ${WORKSPACE}/frontend/Dockerfile \
                           --destination ${IMAGE} \
                           --destination ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest
                     '''
