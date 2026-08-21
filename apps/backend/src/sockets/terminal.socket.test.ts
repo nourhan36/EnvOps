@@ -11,7 +11,15 @@ vi.mock("../services/terminal.service", () => ({
 
 vi.mock("../services/sandbox-terminal-target.service", () => ({
   resolveSandboxTerminalTarget: vi.fn(),
-  TerminalTargetError: class TerminalTargetError extends Error {},
+  TerminalTargetError: class TerminalTargetError extends Error {
+    constructor(
+      public readonly code: string,
+      message: string,
+    ) {
+      super(message);
+      this.name = "TerminalTargetError";
+    }
+  },
 }));
 
 vi.mock("../error-interceptor/capture.service", () => ({
@@ -25,9 +33,16 @@ vi.mock("../error-interceptor/capture.service", () => ({
   },
 }));
 
+vi.mock("../services/command-translate.service", () => ({
+  commandTranslateService: {
+    translate: vi.fn(),
+  },
+}));
+
 import { registerTerminalSocketHandlers } from "./terminal.socket";
 import { terminalService } from "../services/terminal.service";
 import { resolveSandboxTerminalTarget } from "../services/sandbox-terminal-target.service";
+import { commandTranslateService } from "../services/command-translate.service";
 
 function createFakeSocket() {
   const handlers = new Map<string, (...args: any[]) => void>();
@@ -182,5 +197,183 @@ describe("terminal socket start coalescing", () => {
     });
 
     expect(terminalService.start).not.toHaveBeenCalled();
+  });
+});
+
+describe("ai:translate handler", () => {
+  const READY_TRANSLATION = {
+    status: "ready",
+    model: "deepseek.test",
+    translation: {
+      command: "du -ah /var/log | sort -rh | head -n 10",
+      is_destructive: false,
+      explanation: "Lists the largest files.",
+    },
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(resolveSandboxTerminalTarget).mockResolvedValue({
+      sandboxId: "sandbox-42",
+      namespace: "sandbox-ns",
+      podName: "sandbox-terminal",
+      containerName: "sandbox-container",
+      shell: "/bin/sh",
+    } as any);
+  });
+
+  function emitTranslate(
+    socket: ReturnType<typeof createFakeSocket>,
+    payload: unknown,
+  ): Promise<any> {
+    return new Promise((resolve) => {
+      socket.emitEvent("ai:translate", payload, (response: any) =>
+        resolve(response),
+      );
+    });
+  }
+
+  it("acks a successful translation", async () => {
+    const socket = createFakeSocket();
+    vi.mocked(commandTranslateService.translate).mockResolvedValue(
+      READY_TRANSLATION as any,
+    );
+
+    registerTerminalSocketHandlers(socket);
+    const ack = await emitTranslate(socket, {
+      sandboxId: "sandbox-42",
+      intent: "find big log files",
+    });
+
+    expect(ack).toEqual({ ok: true, translation: READY_TRANSLATION.translation });
+    // Ownership is proven against the sandbox, not trusted from the client.
+    expect(resolveSandboxTerminalTarget).toHaveBeenCalledWith(
+      "sandbox-42",
+      "demo@envops.dev",
+    );
+  });
+
+  it("rejects malformed payloads", async () => {
+    const socket = createFakeSocket();
+    registerTerminalSocketHandlers(socket);
+
+    expect((await emitTranslate(socket, { intent: "x" })).error?.code).toBe("INVALID_PAYLOAD");
+    expect(
+      (await emitTranslate(socket, { sandboxId: "s-1", intent: "   " })).error?.code,
+    ).toBe("INVALID_PAYLOAD");
+    expect((await emitTranslate(socket, null)).error?.code).toBe("INVALID_PAYLOAD");
+    expect(commandTranslateService.translate).not.toHaveBeenCalled();
+  });
+
+  it("rejects over-long intents without consuming the LLM", async () => {
+    const socket = createFakeSocket();
+    registerTerminalSocketHandlers(socket);
+
+    const ack = await emitTranslate(socket, {
+      sandboxId: "sandbox-42",
+      intent: "a".repeat(501),
+    });
+
+    expect(ack.error?.code).toBe("INTENT_TOO_LONG");
+    expect(commandTranslateService.translate).not.toHaveBeenCalled();
+  });
+
+  it("allows only one in-flight translation per connection", async () => {
+    const socket = createFakeSocket();
+    let release!: (value: any) => void;
+    vi.mocked(commandTranslateService.translate).mockReturnValue(
+      new Promise<any>((resolve) => {
+        release = resolve;
+      }),
+    );
+
+    registerTerminalSocketHandlers(socket);
+
+    let firstAck: any;
+    let secondAck: any;
+    socket.emitEvent(
+      "ai:translate",
+      { sandboxId: "sandbox-42", intent: "first" },
+      (response: any) => (firstAck = response),
+    );
+    socket.emitEvent(
+      "ai:translate",
+      { sandboxId: "sandbox-42", intent: "second" },
+      (response: any) => (secondAck = response),
+    );
+
+    expect(secondAck?.error?.code).toBe("AI_RATE_LIMITED");
+
+    release(READY_TRANSLATION);
+    await vi.waitFor(() => expect(firstAck?.ok).toBe(true));
+
+    // The slot is freed after completion.
+    const thirdAck = await new Promise<any>((resolve) => {
+      socket.emitEvent(
+        "ai:translate",
+        { sandboxId: "sandbox-42", intent: "third" },
+        resolve,
+      );
+    });
+    expect(thirdAck.ok).toBe(true);
+  });
+
+  it("maps a failed translation to AI_TRANSLATION_FAILED", async () => {
+    const socket = createFakeSocket();
+    vi.mocked(commandTranslateService.translate).mockResolvedValue({
+      status: "failed",
+      reason: "bad_response",
+      issues: ["The model returned an empty response."],
+      retryable: true,
+    } as any);
+
+    registerTerminalSocketHandlers(socket);
+    const ack = await emitTranslate(socket, {
+      sandboxId: "sandbox-42",
+      intent: "list files",
+    });
+
+    expect(ack.error?.code).toBe("AI_TRANSLATION_FAILED");
+    expect(ack.error?.message).toContain("empty response");
+  });
+
+  it("blocks unsafe commands even when the model returns them", async () => {
+    const socket = createFakeSocket();
+    vi.mocked(commandTranslateService.translate).mockResolvedValue({
+      status: "ready",
+      model: "m",
+      translation: {
+        command: ":(){ :|:& };:",
+        is_destructive: false,
+        explanation: "fork bomb",
+      },
+    } as any);
+
+    registerTerminalSocketHandlers(socket);
+    const ack = await emitTranslate(socket, {
+      sandboxId: "sandbox-42",
+      intent: "do the thing",
+    });
+
+    expect(ack.error?.code).toBe("AI_UNSAFE_COMMAND");
+  });
+
+  it("propagates sandbox ownership errors", async () => {
+    const socket = createFakeSocket();
+    const { TerminalTargetError } = await import(
+      "../services/sandbox-terminal-target.service"
+    );
+    vi.mocked(resolveSandboxTerminalTarget).mockRejectedValue(
+      new TerminalTargetError("SANDBOX_NOT_FOUND", "No such sandbox."),
+    );
+
+    registerTerminalSocketHandlers(socket);
+    const ack = await emitTranslate(socket, {
+      sandboxId: "someone-elses-sandbox",
+      intent: "list files",
+    });
+
+    expect(ack.error?.code).toBe("SANDBOX_NOT_FOUND");
+    expect(commandTranslateService.translate).not.toHaveBeenCalled();
   });
 });
