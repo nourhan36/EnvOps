@@ -14,6 +14,7 @@ const EMPTY_STATS: DashboardStats = {
   totalTemplates: 0,
 };
 
+
 export default function DashboardPage() {
   const navigate = useNavigate();
   const [sandboxes, setSandboxes] = useState<Sandbox[]>([]);
