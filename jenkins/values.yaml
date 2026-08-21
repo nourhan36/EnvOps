@@ -5,21 +5,34 @@ persistence:
 
 controller:
 
+  # Fix Git "dubious ownership" problem permanently
+  containerEnv:
+    - name: GIT_CONFIG_COUNT
+      value: "1"
+    - name: GIT_CONFIG_KEY_0
+      value: "safe.directory"
+    - name: GIT_CONFIG_VALUE_0
+      value: "*"
+
   ingress:
     enabled: true
     ingressClassName: nginx
+
     annotations:
       nginx.ingress.kubernetes.io/proxy-body-size: "0"
       nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
       nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+
     path: /
     pathType: Prefix
+
     jenkinsUrlProtocol: "http"
 
   resources:
     requests:
       cpu: "500m"
       memory: "1Gi"
+
     limits:
       cpu: "2"
       memory: "2Gi"
@@ -38,6 +51,7 @@ controller:
     - matrix-auth
 
   overwritePlugins: true
+
   healthProbes: true
 
   csrf:
@@ -46,8 +60,11 @@ controller:
       proxyCompatibility: true
 
   JCasC:
+
     enabled: true
+
     configScripts:
+
       security: |
         jenkins:
           authorizationStrategy:
@@ -60,13 +77,17 @@ controller:
             - kubernetes:
                 name: "eks-cluster"
                 namespace: "cicd"
+
                 serverUrl: "https://kubernetes.default.svc"
-            
-                jenkinsUrl: "http://a3f7f8e1ad3654b60b8c84a3ae9e5b03-1095597635.us-east-1.elb.amazonaws.com"
+
+                jenkinsUrl: "http://afc2a74005b6e45cdae1a02e3f252f97-1897188318.us-east-1.elb.amazonaws.com"
+
                 webSocket: true
 
                 templates:
+
                   - name: "default-agent"
+
                     label: "jenkins-agent"
 
                     serviceAccount: "jenkins-agent-sa"
@@ -75,9 +96,11 @@ controller:
                       emptyDirWorkspaceVolume: {}
 
                     containers:
+
                       - name: "jnlp"
                         image: "jenkins/inbound-agent:latest"
                         args: "${computer.jnlpmac} ${computer.name}"
+
                       - name: "node"
                         image: "node:22"
                         command: "sleep"
@@ -89,7 +112,9 @@ controller:
                         args: "infinity"
 
 agent:
+
   serviceAccount:
     name: jenkins-agent-sa
+
     annotations:
-      eks.amazonaws.com/role-arn: arn:aws:iam::<AWS_ACCOUNT_ID>:role/jenkins-agent-role
+      eks.amazonaws.com/role-arn: arn:aws:iam::524558748637:role/jenkins-agent-role
