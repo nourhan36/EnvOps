@@ -38,20 +38,9 @@ spec:
             - name: http
               containerPort: 3000
               protocol: TCP
-          env:
-            - name: PORT
-              value: "3000"
-            - name: APP_ORIGINS
-              value: "https://REPLACE_WITH_FRONTEND_HOST"
-            - name: KUBERNETES_TARGET
-              value: "aws"
-            - name: SANDBOX_POD_SELECTOR
-              value: "app=sandbox"
-            - name: EVICTION_INTERVAL_MS
-              value: "60000"
-            - name: TERMINAL_SHELL
-              value: "/bin/sh"
           envFrom:
+            - configMapRef:
+                name: envops-backend-config
             - secretRef:
                 name: envops-backend-secrets
           resources:
