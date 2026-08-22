@@ -44,7 +44,7 @@ spec:
       containers:
         - name: frontend
 
-          image: REPLACE_WITH_ECR_FRONTEND_IMAGE
+          image: REPLACE_WITH_ECR_FRONTEND_IMAGE:latest
           imagePullPolicy: IfNotPresent
 
           ports:
