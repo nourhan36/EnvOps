@@ -7,6 +7,7 @@ metadata:
     app.kubernetes.io/name: envops-backend
     app.kubernetes.io/component: api
     app.kubernetes.io/part-of: envops
+
 spec:
   replicas: 1
   strategy:
