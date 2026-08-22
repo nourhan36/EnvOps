@@ -40,3 +40,26 @@ variable "repositories" {
     "backend"
   ]
 }
+
+variable "git_repo_url" {
+  description = "Git repository containing the EnvOps project"
+  type        = string
+}
+
+variable "git_branch" {
+  description = "Git branch used by Argo CD and Image Updater"
+  type        = string
+  default     = "main"
+}
+
+variable "git_username" {
+  description = "GitHub username for Argo CD/Image Updater"
+  type        = string
+  sensitive   = true
+}
+
+variable "git_token" {
+  description = "GitHub PAT with repository read/write access"
+  type        = string
+  sensitive   = true
+}

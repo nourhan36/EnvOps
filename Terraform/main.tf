@@ -72,6 +72,84 @@ module "ecr" {
   repositories   = var.repositories
 }
 
+resource "aws_iam_policy" "argocd_image_updater_ecr" {
+  name        = "${var.project_name}-argocd-image-updater-ecr"
+  description = "Allows Argo CD Image Updater to inspect EnvOps ECR repositories"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Effect = "Allow"
+
+        Action = [
+          "ecr:GetAuthorizationToken"
+        ]
+
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+
+        Action = [
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:BatchGetImage",
+          "ecr:DescribeImages",
+          "ecr:ListImages"
+        ]
+
+        Resource = [
+          "arn:aws:ecr:${var.region}:${data.aws_caller_identity.current.account_id}:repository/${var.project_name}/backend",
+          "arn:aws:ecr:${var.region}:${data.aws_caller_identity.current.account_id}:repository/${var.project_name}/frontend"
+        ]
+      }
+    ]
+  })
+}
+
+module "argocd_image_updater_irsa" {
+  source = "./Modules/IRSA"
+
+  name = "${var.project_name}-argocd-image-updater"
+
+  policy_arn = aws_iam_policy.argocd_image_updater_ecr.arn
+
+  oidc_provider_arn = module.eks.oidc_provider_arn
+  oidc_issuer       = module.eks.oidc_provider_url
+
+  namespace       = "argocd"
+  service_account = "argocd-image-updater"
+
+  depends_on = [
+    module.eks,
+    aws_iam_policy.argocd_image_updater_ecr
+  ]
+}
+
+module "argocd_gitops" {
+  source = "./Modules/ArgoGitOps"
+
+  git_repo_url = var.git_repo_url
+  git_branch   = var.git_branch
+
+  git_username = var.git_username
+  git_token    = var.git_token
+
+  backend_repository_url  = module.ecr.backend_repository_url
+  frontend_repository_url = module.ecr.frontend_repository_url
+
+  aws_region = var.region
+
+  image_updater_role_arn = module.argocd_image_updater_irsa.role_arn
+
+  depends_on = [
+    module.eks,
+    module.ecr,
+    module.argocd_image_updater_irsa
+  ]
+}
+
 module "jenkins_agent_irsa" {
   source = "./Modules/IRSA"
 
