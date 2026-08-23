@@ -40,6 +40,10 @@ kubectl apply -f "$root_dir/Kubernetes/secrets-management/externalsecret-redis.y
 kubectl wait --for=condition=Ready externalsecret/postgres-credentials -n "$namespace" --timeout=5m
 kubectl wait --for=condition=Ready externalsecret/redis-credentials -n "$namespace" --timeout=5m
 
+# The gp3 class is explicitly selected by the PostgreSQL and Redis charts.
+# The EBS CSI add-on itself is managed by Terraform.
+kubectl apply -f "$root_dir/Kubernetes/data-layer/gp3-storageclass.yaml"
+
 helm repo add bitnami https://charts.bitnami.com/bitnami >/dev/null
 helm repo update >/dev/null
 helm upgrade --install envops-postgres bitnami/postgresql --namespace "$namespace" --create-namespace \

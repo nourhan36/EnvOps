@@ -114,7 +114,7 @@ Argo CD runs Prisma migrations and the idempotent seed before each backend
 rollout. No password is committed to the repository or supplied as a Terraform
 variable.
 
-After Terraform has deployed EKS, IRSA, and External Secrets Operator, run the
+After Terraform has deployed EKS, the EBS CSI driver, IRSA, and External Secrets Operator, run the
 bootstrap once for the new environment:
 
 ```bash

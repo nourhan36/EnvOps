@@ -14,9 +14,9 @@ module "eks" {
   tags               = var.tags
 }
 module "iam" {
-  source = "./Modules/IAM"
-  region     = var.region
-  account_id = data.aws_caller_identity.current.account_id
+  source       = "./Modules/IAM"
+  region       = var.region
+  account_id   = data.aws_caller_identity.current.account_id
   project_name = var.project_name
 
 }
@@ -52,6 +52,33 @@ module "efs_csi_irsa" {
   policy_arn        = "arn:aws:iam::aws:policy/service-role/AmazonEFSCSIDriverPolicy"
 }
 
+# The EBS CSI controller provisions the PersistentVolumes used by PostgreSQL
+# and Redis.  It uses its own IRSA role instead of the worker-node role.
+module "ebs_csi_irsa" {
+  source = "./Modules/IRSA"
+
+  name              = "${var.project_name}-ebs-csi"
+  oidc_provider_arn = module.eks.oidc_provider_arn
+  oidc_issuer       = module.eks.oidc_provider_url
+  namespace         = "kube-system"
+  service_account   = "ebs-csi-controller-sa"
+  policy_arn        = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+}
+
+resource "aws_eks_addon" "ebs_csi" {
+  cluster_name             = module.eks.cluster_id
+  addon_name               = "aws-ebs-csi-driver"
+  service_account_role_arn = module.ebs_csi_irsa.role_arn
+
+  resolve_conflicts_on_create = "OVERWRITE"
+  resolve_conflicts_on_update = "OVERWRITE"
+
+  depends_on = [
+    module.eks,
+    module.ebs_csi_irsa,
+  ]
+}
+
 module "efs" {
   source                = "./Modules/EFS"
   service_account_name  = "efs-csi-controller-sa"
@@ -65,7 +92,7 @@ module "efs" {
 
 
 module "ecr" {
-  source = "./Modules/ECR"
+  source         = "./Modules/ECR"
   project_name   = var.project_name
   node_role_arn  = module.eks.node_role_arn
   images_to_keep = 10
