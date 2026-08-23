@@ -67,7 +67,7 @@ variable "acme_email" {
 variable "git_token" {
   description = "ACME server URL for Let's Encrypt"
   type        = string
-  default     = "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"
+  # default     = "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"
 }
 variable "git_username" {
   description = "GitHub username for Argo CD/Image Updater"
