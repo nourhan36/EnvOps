@@ -43,7 +43,9 @@ spec:
             - configMapRef:
                 name: envops-backend-config
             - secretRef:
-                name: envops-backend-secrets
+                name: postgres-credentials
+            - secretRef:
+                name: redis-credentials
           resources:
             requests:
               cpu: 100m
