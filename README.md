@@ -105,6 +105,62 @@ npm run dev
 
 The `Terraform/` directory contains the modularized IaC for AWS. It is designed to work with both real AWS environments and local emulators via override files.
 
+### Automated cloud database setup
+
+The cloud data plane is automated end-to-end: AWS Secrets Manager holds the
+credentials, Terraform installs External Secrets Operator with IRSA, ESO
+creates Kubernetes Secrets, Helm deploys persistent PostgreSQL and Redis, and
+Argo CD runs Prisma migrations and the idempotent seed before each backend
+rollout. No password is committed to the repository or supplied as a Terraform
+variable.
+
+After Terraform has deployed EKS, IRSA, and External Secrets Operator, run the
+bootstrap once for the new environment:
+
+```bash
+cd EnvOps
+./scripts/bootstrap-cloud-database.sh
+```
+
+It retains existing AWS secrets, so
+it is safe to re-run after an interrupted bootstrap. Password rotation is
+intentionally separate: update the two AWS Secrets Manager values and let ESO
+refresh the Kubernetes Secrets; do not place rotated values in Git or Terraform
+state.
+
+Verify the deployed state without displaying credentials:
+
+```bash
+./scripts/test-cloud-database.sh
+```
+
+It runs `SELECT 1` inside the real backend container using its injected
+`DATABASE_URL`, without showing the credential.
+
+After the verification passes, push the backend image to ECR, then enable the
+rest of the GitOps stack with the usual full Terraform apply:
+
+```bash
+cd Terraform
+terraform apply -var-file="envs/prod.tfvars"
+```
+
+This ordering ensures Argo CD does not run the migration and seed Jobs until
+the database is ready and the backend image is available.
+
+### Database migrations
+
+Database migrations run automatically during every Argo CD sync. The
+`envops-backend-migrate` Job is a `PreSync` hook that runs
+`npx prisma migrate deploy` from the backend image before the backend Deployment
+is updated. It uses the same ConfigMap plus the ESO-managed PostgreSQL and
+Redis Secrets as the API. The following `PreSync` seed Job uses Prisma upserts,
+so reference data is restored safely on every sync.
+
+If a migration fails, Argo CD stops the sync and leaves the current backend
+Deployment in place. Successful migration Jobs are removed automatically; failed
+Jobs are retained for up to 24 hours for troubleshooting.
+
 ### Deploying to Local Emulator (Floci)
 
 If you are developing locally, ensure your `floci_override.tf` is present (this file is git-ignored to prevent polluting production).

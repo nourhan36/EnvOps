@@ -1,0 +1,17 @@
+auth:
+  existingSecret: postgres-credentials
+  secretKeys:
+    adminPasswordKey: password
+  username: envops_admin
+  database: envops
+primary:
+  persistence:
+    enabled: true
+    size: 8Gi
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
