@@ -14,9 +14,9 @@ module "eks" {
   tags               = var.tags
 }
 module "iam" {
-  source = "./Modules/IAM"
-  region     = var.region
-  account_id = data.aws_caller_identity.current.account_id
+  source       = "./Modules/IAM"
+  region       = var.region
+  account_id   = data.aws_caller_identity.current.account_id
   project_name = var.project_name
 
 }
@@ -65,7 +65,7 @@ module "efs" {
 
 
 module "ecr" {
-  source = "./Modules/ECR"
+  source         = "./Modules/ECR"
   project_name   = var.project_name
   node_role_arn  = module.eks.node_role_arn
   images_to_keep = 10
@@ -164,4 +164,22 @@ module "jenkins_agent_irsa" {
 module "nginx_ingress" {
   source = "./Modules/NginxIngress"
 
+  acme_email  = var.acme_email
+  domain_name = var.domain_name
+
+  depends_on = [
+    module.eks
+  ]
+}
+
+output "envops_domain_name" {
+  value = var.domain_name
+}
+
+output "envops_api_endpoint" {
+  value = "https://${var.domain_name}"
+}
+
+output "envops_frontend_endpoint" {
+  value = "https://${var.domain_name}"
 }
