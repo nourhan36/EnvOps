@@ -12,6 +12,7 @@ controller:
                 namespace: "cicd"
                 serverUrl: "https://kubernetes.default.svc"
                 jenkinsUrl: "http://a936da9d40fbb48aa907d72b19ac6e83-418695135.us-east-1.elb.amazonaws.com"
+
                 webSocket: true
 
                 templates:
