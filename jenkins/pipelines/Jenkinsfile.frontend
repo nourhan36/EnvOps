@@ -5,7 +5,7 @@ pipeline {
 
     environment {
         AWS_REGION = 'us-east-1'
-        AWS_ACCOUNT_ID = 'ACCOUNT_ID'
+        AWS_ACCOUNT_ID = '524558748637'
 
         ECR_REPOSITORY = 'envops-dev/frontend'
 
