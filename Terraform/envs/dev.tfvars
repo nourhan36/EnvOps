@@ -25,3 +25,6 @@ tags = {
   ManagedBy   = "Terraform"
   Owner       = "InfraMind Tech"
 }
+
+domain_name = "envops-rana.duckdns.org"
+acme_email  = "ranasalem923@gmail.com"
