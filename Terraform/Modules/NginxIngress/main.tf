@@ -22,6 +22,6 @@ resource "kubernetes_manifest" "envops_ingress" {
 
   depends_on = [
     helm_release.nginx_ingress,
-    kubernetes_manifest.letsencrypt_issuer
+    # kubernetes_manifest.letsencrypt_issuer
   ]
 }

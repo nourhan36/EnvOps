@@ -164,22 +164,10 @@ module "jenkins_agent_irsa" {
 module "nginx_ingress" {
   source = "./Modules/NginxIngress"
 
-  acme_email  = var.acme_email
-  domain_name = var.domain_name
-
+  # acme_email  = var.acme_email
+  # domain_name = var.domain_name
   depends_on = [
     module.eks
   ]
-}
-
-output "envops_domain_name" {
-  value = var.domain_name
-}
-
-output "envops_api_endpoint" {
-  value = "https://${var.domain_name}"
-}
-
-output "envops_frontend_endpoint" {
-  value = "https://${var.domain_name}"
+  
 }
