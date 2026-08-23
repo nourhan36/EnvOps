@@ -80,7 +80,7 @@ controller:
 
                 serverUrl: "https://kubernetes.default.svc"
 
-                jenkinsUrl: "http://afc2a74005b6e45cdae1a02e3f252f97-1897188318.us-east-1.elb.amazonaws.com"
+                jenkinsUrl: "a936da9d40fbb48aa907d72b19ac6e83-418695135.us-east-1.elb.amazonaws.com"
 
                 webSocket: true
 

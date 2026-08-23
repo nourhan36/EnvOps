@@ -2,11 +2,105 @@ locals {
   ecr_registry = split("/", var.backend_repository_url)[0]
 }
 
+# resource "helm_release" "argocd" {
+#   name             = "argocd"
+#   repository       = "https://argoproj.github.io/argo-helm"
+#   chart            = "argo-cd"
+#   version          = var.argocd_chart_version
+
+#   namespace        = "argocd"
+#   create_namespace = true
+
+#   wait    = true
+#   atomic  = true
+#   timeout = 900
+
+#   values = [
+#     yamlencode({
+#       configs = {
+#         repositories = {
+#           envops = {
+#             url      = var.git_repo_url
+#             username = var.git_username
+#             password = var.git_token
+#             name     = "envops-repo"
+#             type     = "git"
+#           }
+#         }
+#       }
+
+#       server = {
+#         replicas = 1
+#       }
+
+#       controller = {
+#         replicas = 1
+#       }
+
+#       repoServer = {
+#         replicas = 1
+#       }
+
+#       applicationSet = {
+#         replicas = 1
+#       }
+
+#       notifications = {
+#         enabled = false
+#       }
+
+#       extraObjects = [
+#         {
+#           apiVersion = "argoproj.io/v1alpha1"
+#           kind       = "Application"
+
+#           metadata = {
+#             name      = "envops"
+#             namespace = "argocd"
+
+#             finalizers = [
+#               "resources-finalizer.argocd.argoproj.io"
+#             ]
+#           }
+
+#           spec = {
+#             project = "default"
+
+#             source = {
+#               repoURL        = var.git_repo_url
+#               targetRevision = var.git_branch
+#               path           = "Kubernetes/gitops/envops"
+#             }
+
+#             destination = {
+#               server    = "https://kubernetes.default.svc"
+#               namespace = "envops-core"
+#             }
+
+#             syncPolicy = {
+#               automated = {
+#                 enabled  = true
+#                 prune    = true
+#                 selfHeal = true
+#               }
+
+#               syncOptions = [
+#                 "CreateNamespace=true"
+#               ]
+#             }
+#           }
+#         }
+#       ]
+#     })
+#   ]
+# }
+
+
 resource "helm_release" "argocd" {
-  name             = "argocd"
-  repository       = "https://argoproj.github.io/argo-helm"
-  chart            = "argo-cd"
-  version          = var.argocd_chart_version
+  name       = "argocd"
+  repository = "https://argoproj.github.io/argo-helm"
+  chart      = "argo-cd"
+  version    = var.argocd_chart_version
 
   namespace        = "argocd"
   create_namespace = true
@@ -48,53 +142,55 @@ resource "helm_release" "argocd" {
       notifications = {
         enabled = false
       }
-
-      extraObjects = [
-        {
-          apiVersion = "argoproj.io/v1alpha1"
-          kind       = "Application"
-
-          metadata = {
-            name      = "envops"
-            namespace = "argocd"
-
-            finalizers = [
-              "resources-finalizer.argocd.argoproj.io"
-            ]
-          }
-
-          spec = {
-            project = "default"
-
-            source = {
-              repoURL        = var.git_repo_url
-              targetRevision = var.git_branch
-              path           = "Kubernetes/gitops/envops"
-            }
-
-            destination = {
-              server    = "https://kubernetes.default.svc"
-              namespace = "envops-core"
-            }
-
-            syncPolicy = {
-              automated = {
-                enabled  = true
-                prune    = true
-                selfHeal = true
-              }
-
-              syncOptions = [
-                "CreateNamespace=true"
-              ]
-            }
-          }
-        }
-      ]
     })
   ]
 }
 
+resource "kubernetes_manifest" "envops_application" {
+  manifest = {
+    apiVersion = "argoproj.io/v1alpha1"
+    kind       = "Application"
+
+    metadata = {
+      name      = "envops"
+      namespace = "argocd"
+
+      finalizers = [
+        "resources-finalizer.argocd.argoproj.io"
+      ]
+    }
+
+    spec = {
+      project = "default"
+
+      source = {
+        repoURL        = var.git_repo_url
+        targetRevision = var.git_branch
+        path           = "Kubernetes/gitops/envops"
+      }
+
+      destination = {
+        server    = "https://kubernetes.default.svc"
+        namespace = "envops-core"
+      }
+
+      syncPolicy = {
+        automated = {
+          prune    = true
+          selfHeal = true
+        }
+
+        syncOptions = [
+          "CreateNamespace=true"
+        ]
+      }
+    }
+  }
+
+  depends_on = [
+    helm_release.argocd
+  ]
+}
 resource "helm_release" "image_updater" {
   name             = "argocd-image-updater"
   repository       = "https://argoproj.github.io/argo-helm"
@@ -147,7 +243,6 @@ resource "helm_release" "image_updater" {
       initContainers = [
         {
           name  = "aws-cli"
-
           image = "amazon/aws-cli:2"
 
           command = [
@@ -184,8 +279,7 @@ resource "helm_release" "image_updater" {
       ]
 
       config = {
-        "git.user" = "envops-image-updater"
-
+        "git.user"  = "envops-image-updater"
         "git.email" = "envops-image-updater@users.noreply.github.com"
 
         registries = [
@@ -200,85 +294,24 @@ resource "helm_release" "image_updater" {
           }
         ]
       }
-
-      extraObjects = [
-        {
-          apiVersion = "v1"
-          kind       = "Secret"
-
-          metadata = {
-            name      = "git-creds"
-            namespace = "argocd"
-          }
-
-          type = "Opaque"
-
-          stringData = {
-            username = var.git_username
-            password = var.git_token
-          }
-        },
-        {
-          apiVersion = "argocd-image-updater.argoproj.io/v1alpha1"
-          kind       = "ImageUpdater"
-
-          metadata = {
-            name      = "envops-image-updater"
-            namespace = "argocd"
-          }
-
-          spec = {
-            writeBackConfig = {
-              method = "git:secret:git-creds"
-
-              gitConfig = {
-                repository     = var.git_repo_url
-                branch         = var.git_branch
-                writeBackTarget = "kustomization"
-              }
-            }
-
-            applicationRefs = [
-              {
-                namePattern = "envops"
-
-                images = [
-                  {
-                    alias     = "backend"
-                    imageName = "${var.backend_repository_url}:latest"
-
-                    commonUpdateSettings = {
-                      updateStrategy = "digest"
-                      forceUpdate    = true
-                    }
-
-                    manifestTargets = {
-                      kustomize = {
-                        name = "REPLACE_WITH_ECR_BACKEND_IMAGE"
-                      }
-                    }
-                  },
-                  {
-                    alias     = "frontend"
-                    imageName = "${var.frontend_repository_url}:latest"
-
-                    commonUpdateSettings = {
-                      updateStrategy = "digest"
-                      forceUpdate    = true
-                    }
-
-                    manifestTargets = {
-                      kustomize = {
-                        name = "REPLACE_WITH_ECR_FRONTEND_IMAGE"
-                      }
-                    }
-                  }
-                ]
-              }
-            ]
-          }
-        }
-      ]
     })
+  ]
+}
+
+resource "kubernetes_secret_v1" "git_creds" {
+  metadata {
+    name      = "git-creds"
+    namespace = "argocd"
+  }
+
+  type = "Opaque"
+
+  data = {
+    username = var.git_username
+    password = var.git_token
+  }
+
+  depends_on = [
+    helm_release.argocd
   ]
 }
