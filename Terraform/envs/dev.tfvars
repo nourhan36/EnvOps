@@ -28,3 +28,6 @@ tags = {
 
 domain_name = "envops-rana.duckdns.org"
 acme_email  = "ranasalem923@gmail.com"
+
+git_repo_url = "https://github.com/nourhan36/EnvOps"
+git_branch = "main"

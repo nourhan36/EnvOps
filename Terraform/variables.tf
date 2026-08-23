@@ -52,17 +52,8 @@ variable "git_branch" {
   default     = "main"
 }
 
-variable "git_username" {
-  description = "GitHub username for Argo CD/Image Updater"
-  type        = string
-  sensitive   = true
-}
 
-variable "git_token" {
-  description = "GitHub PAT with repository read/write access"
-  type        = string
-  sensitive   = true
-}
+
 
 variable "domain_name" {
   description = "Public domain name for EnvOps"
@@ -72,4 +63,15 @@ variable "domain_name" {
 variable "acme_email" {
   description = "Email address used by Let's Encrypt"
   type        = string
+}
+variable "git_token" {
+  description = "ACME server URL for Let's Encrypt"
+  type        = string
+  default     = "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"
+}
+variable "git_username" {
+  description = "GitHub username for Argo CD/Image Updater"
+  type        = string
+  sensitive   = true
+  default     = "nourhan36"
 }
