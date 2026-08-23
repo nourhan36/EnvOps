@@ -1,0 +1,16 @@
+# Bitnami Redis values. ESO supplies the password through existingSecret.
+architecture: standalone
+auth:
+  existingSecret: redis-credentials
+  existingSecretPasswordKey: password
+master:
+  persistence:
+    enabled: true
+    size: 4Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
