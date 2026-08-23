@@ -1,0 +1,62 @@
+# apiVersion: kustomize.config.k8s.io/v1beta1
+# kind: Kustomization
+
+# resources:
+#   - ../../envops/namespace.yaml
+
+#   # ESO itself is installed by Terraform. These resources make the cloud
+#   # secrets available to workloads managed by this Argo CD Application.
+#   - /secrets-management/secretstore.yaml
+#   - /secrets-management/externalsecret-postgres.yaml
+#   - /secrets-management/externalsecret-redis.yaml
+#   - /envops/backend/configmap.yaml
+#   - /envops/backend/service-account.yaml
+#   - /envops/backend/rbac.yaml
+#   - /envops/backend/migration-job.yaml
+#   - /envops/backend/deployment.yaml
+#   - /envops/frontend/deployment.yaml
+#   - /envops/frontend/hpa.yaml
+
+# images:
+#   - name: REPLACE_WITH_ECR_BACKEND_IMAGE
+#     newName: 524558748637.dkr.ecr.us-east-1.amazonaws.com/envops-dev/backend
+#     newTag: latest
+
+#   - name: REPLACE_WITH_ECR_FRONTEND_IMAGE
+#     newName: 524558748637.dkr.ecr.us-east-1.amazonaws.com/envops-dev/frontend
+#     newTag: latest
+
+
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - envops/namespace.yaml
+
+  # ESO resources
+  - secrets-management/secretstore.yaml
+  - secrets-management/externalsecret-postgres.yaml
+  - secrets-management/externalsecret-redis.yaml
+
+  # Backend
+  - envops/backend/configmap.yaml
+  - envops/backend/service-account.yaml
+  - envops/backend/rbac.yaml
+  - envops/backend/migration-job.yaml
+  - envops/backend/deployment.yaml
+  - envops/backend/service.yaml
+
+  # Frontend
+  - envops/frontend/deployment.yaml
+  - envops/frontend/hpa.yaml
+  - envops/frontend/service.yaml
+
+images:
+  - name: REPLACE_WITH_ECR_BACKEND_IMAGE
+    newName: 524558748637.dkr.ecr.us-east-1.amazonaws.com/envops-dev/backend
+    newTag: latest
+
+  - name: REPLACE_WITH_ECR_FRONTEND_IMAGE
+    newName: 524558748637.dkr.ecr.us-east-1.amazonaws.com/envops-dev/frontend
+    newTag: latest
