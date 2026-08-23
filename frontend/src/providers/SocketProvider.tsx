@@ -19,7 +19,8 @@ interface SocketContextValue {
 
 const SocketContext = createContext<SocketContextValue | null>(null);
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
+const SOCKET_URL =
+  import.meta.env.VITE_SOCKET_URL || window.location.origin;
 
 interface SocketProviderProps {
   children: ReactNode;
@@ -42,7 +43,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
       disconnect();
 
       const instance = io(SOCKET_URL, {
-        transports: ['websocket'],
+        transports: ['polling', 'websocket'],
         autoConnect: true,
         query: sandboxId ? { sandboxId } : undefined,
       });

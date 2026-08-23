@@ -11,8 +11,9 @@ const EMPTY_STATS: DashboardStats = {
   totalTemplates: 0,
 };
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
+const SOCKET_URL =
+  import.meta.env.VITE_SOCKET_URL || window.location.origin;
 
 export default function SettingsPage() {
   const [health, setHealth] = useState<'checking' | 'ok' | 'offline'>('checking');
@@ -94,11 +95,10 @@ export default function SettingsPage() {
                   <div key={label} className="flex items-center justify-between text-sm">
                     <dt className="text-gray-500">{label}</dt>
                     <dd
-                      className={`font-mono text-gray-300 ${
-                        label === 'Backend Health' && health === 'offline'
+                      className={`font-mono text-gray-300 ${label === 'Backend Health' && health === 'offline'
                           ? 'text-status-danger'
                           : ''
-                      }`}
+                        }`}
                     >
                       {value}
                     </dd>

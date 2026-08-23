@@ -48,6 +48,10 @@ export type TerminalErrorCode =
   | "TERMINAL_ALREADY_STARTING"
   | "TERMINAL_START_FAILED"
   | "INPUT_TOO_LARGE"
+  | "AI_RATE_LIMITED"
+  | "AI_TRANSLATION_FAILED"
+  | "AI_UNSAFE_COMMAND"
+  | "INTENT_TOO_LONG"
   | "INTERNAL_ERROR";
 
 export interface TerminalErrorPayload {
@@ -61,6 +65,22 @@ export interface TerminalAck {
   terminal?: TerminalStartedPayload;
 }
 
+export interface AiTranslatePayload {
+  sandboxId: string;
+  intent: string;
+}
+
+export interface AiTranslation {
+  /** Single-line bash command. Never contains newlines - execution stays user-initiated. */
+  command: string;
+  is_destructive: boolean;
+  explanation: string;
+}
+
+export type AiTranslateAck =
+  | { ok: true; translation: AiTranslation }
+  | { ok: false; error: TerminalErrorPayload };
+
 export interface ClientToServerEvents {
   "terminal:start": (
     payload: TerminalStartPayload,
@@ -69,6 +89,10 @@ export interface ClientToServerEvents {
   "terminal:input": (payload: TerminalInputPayload) => void;
   "terminal:resize": (payload: TerminalResizePayload) => void;
   "terminal:stop": () => void;
+  "ai:translate": (
+    payload: AiTranslatePayload,
+    acknowledge?: (response: AiTranslateAck) => void,
+  ) => void;
 }
 
 export interface ServerToClientEvents {

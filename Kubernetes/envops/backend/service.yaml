@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: envops-backend
+  namespace: envops-core
+  labels:
+    app.kubernetes.io/name: envops-backend
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: envops
+
+spec:
+  type: ClusterIP
+
+  selector:
+    app.kubernetes.io/name: envops-backend
+
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+      protocol: TCP

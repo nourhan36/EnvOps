@@ -1,6 +1,8 @@
 import { Socket } from "socket.io";
 import { env } from "../config/env";
 import {
+  AiTranslateAck,
+  AiTranslatePayload,
   ClientToServerEvents,
   InterServerEvents,
   ServerToClientEvents,
@@ -15,6 +17,9 @@ import {
   TerminalTargetError,
 } from "../services/sandbox-terminal-target.service";
 import { terminalService } from "../services/terminal.service";
+import { commandTranslateService } from "../services/command-translate.service";
+import { scanCommandSafety } from "../ai/command.guard";
+import { aiTranslateSocketPayloadSchema } from "../schema/ai-translate.schema";
 import {
   CapturedFailureEvent,
   errorCaptureRegistry,
@@ -100,6 +105,10 @@ function validateResizePayload(
     typeof (payload as TerminalResizePayload).rows === "number"
   );
 }
+
+// One translation at a time per connection: the LLM round-trip is expensive
+// and this keeps abusive clients from stacking concurrent requests.
+const aiTranslationsInFlight = new Set<string>();
 
 export function registerTerminalSocketHandlers(socket: TerminalSocket): void {
   console.log(`Socket connected: ${socket.id}`);
@@ -239,6 +248,118 @@ export function registerTerminalSocketHandlers(socket: TerminalSocket): void {
     }
 
     socketCaptures.get(socket.id)?.capture.handleInput(payload.data);
+  });
+
+  socket.on("ai:translate", async (payload, acknowledge) => {
+    const reply = (response: AiTranslateAck): void => {
+      acknowledge?.(response);
+    };
+
+    const parsed = aiTranslateSocketPayloadSchema.safeParse(payload);
+
+    if (!parsed.success) {
+      reply({
+        ok: false,
+        error: {
+          code: "INVALID_PAYLOAD",
+          message: "ai:translate requires sandboxId and intent strings.",
+        },
+      });
+      return;
+    }
+
+    const intent = parsed.data.intent.trim();
+
+    if (!intent) {
+      reply({
+        ok: false,
+        error: {
+          code: "INVALID_PAYLOAD",
+          message: "The /ai intent cannot be empty.",
+        },
+      });
+      return;
+    }
+
+    if (intent.length > env.aiMaxIntentChars) {
+      reply({
+        ok: false,
+        error: {
+          code: "INTENT_TOO_LONG",
+          message: `The /ai intent is limited to ${env.aiMaxIntentChars} characters.`,
+        },
+      });
+      return;
+    }
+
+    // Check-and-add happens synchronously (before any await) so concurrent
+    // events on one socket can never both slip through.
+    if (aiTranslationsInFlight.has(socket.id)) {
+      reply({
+        ok: false,
+        error: {
+          code: "AI_RATE_LIMITED",
+          message: "A translation is already in progress. Try again shortly.",
+        },
+      });
+      return;
+    }
+
+    aiTranslationsInFlight.add(socket.id);
+
+    try {
+      // Re-resolving the target on every request proves this user still owns
+      // a running sandbox; the translation is never trusted on sandboxId alone.
+      await resolveSandboxTerminalTarget(
+        parsed.data.sandboxId,
+        socket.data.userEmail,
+      );
+
+      const result = await commandTranslateService.translate(intent);
+
+      if (result.status === "failed") {
+        reply({
+          ok: false,
+          error: {
+            code: "AI_TRANSLATION_FAILED",
+            message:
+              result.issues[0] ||
+              "Unable to translate that intent. Try rephrasing it.",
+          },
+        });
+        return;
+      }
+
+      const safety = scanCommandSafety(result.translation.command);
+
+      if (!safety.safe) {
+        console.warn(
+          `Blocked unsafe AI command for ${socket.data.userEmail} (${safety.ruleId}): ${result.translation.command}`,
+        );
+        reply({
+          ok: false,
+          error: {
+            code: "AI_UNSAFE_COMMAND",
+            message: `${safety.message} The intent was not translated.`,
+          },
+        });
+        return;
+      }
+
+      reply({ ok: true, translation: result.translation });
+    } catch (error: any) {
+      const terminalError: TerminalErrorPayload =
+        error instanceof TerminalTargetError
+          ? { code: error.code, message: error.message }
+          : {
+              code: "INTERNAL_ERROR",
+              message: "Unexpected error while translating the intent.",
+            };
+
+      reply({ ok: false, error: terminalError });
+    } finally {
+      aiTranslationsInFlight.delete(socket.id);
+    }
   });
 
   socket.on("terminal:resize", (payload) => {

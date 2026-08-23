@@ -35,6 +35,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY --from=production-dependencies /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
+# Include schema and migration history so the Argo CD migration Job can run
+# `prisma migrate deploy` from this same image before each backend rollout.
 COPY --from=build /app/prisma ./prisma
 COPY docker-entrypoint.sh /usr/local/bin/envops-entrypoint
 
