@@ -69,7 +69,7 @@ resource "helm_release" "argocd" {
             source = {
               repoURL        = var.git_repo_url
               targetRevision = var.git_branch
-              path           = "Kubernetes"
+              path           = "Kubernetes/gitops/envops"
             }
 
             destination = {
