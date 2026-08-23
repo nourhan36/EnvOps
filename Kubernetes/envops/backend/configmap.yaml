@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: envops-backend-config
+  namespace: envops-core
+  labels:
+    app.kubernetes.io/name: envops-backend
+    app.kubernetes.io/part-of: envops
+data:
+  PORT: "3000"
+  APP_ORIGINS: "https://REPLACE_WITH_FRONTEND_HOST"
+  KUBERNETES_TARGET: "aws"
+  SANDBOX_POD_SELECTOR: "app=sandbox"
+  EVICTION_INTERVAL_MS: "60000"
+  TERMINAL_SHELL: "/bin/sh"

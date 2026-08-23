@@ -83,6 +83,14 @@ export const asyncApiSpec = {
       description:
         "The AI Error Interceptor detected a failed command in the terminal stream; the panel can then request an explanation via the REST explain-error endpoint.",
     },
+    aiTranslate: {
+      address: "ai:translate",
+      messages: {
+        aiTranslate: { $ref: "#/components/messages/AiTranslate" },
+      },
+      description:
+        "Translates a natural-language intent into a single-line bash command. The backend never executes the command; the frontend injects it onto the cursor line and execution stays user-initiated.",
+    },
   },
   operations: {
     receiveTerminalStart: {
@@ -129,6 +137,11 @@ export const asyncApiSpec = {
       action: "send",
       channel: { $ref: "#/channels/aiErrorDetected" },
       summary: "Send ai:error-detected to the frontend",
+    },
+    receiveAiTranslate: {
+      action: "receive",
+      channel: { $ref: "#/channels/aiTranslate" },
+      summary: "Receive ai:translate from the frontend",
     },
   },
   components: {
@@ -187,6 +200,18 @@ export const asyncApiSpec = {
         title: "AI error detected",
         summary: "A failed command was detected in the terminal stream.",
         payload: { $ref: "#/components/schemas/AIErrorDetectedPayload" },
+      },
+      AiTranslate: {
+        name: "ai:translate",
+        title: "AI translate intent",
+        summary:
+          "Frontend requests a natural-language to bash translation for a sandbox.",
+        payload: { $ref: "#/components/schemas/AiTranslatePayload" },
+        "x-socketio-ack": {
+          description:
+            "Acknowledgement payload returned by the backend with the translated command or an error.",
+          schema: { $ref: "#/components/schemas/AiTranslateAckPayload" },
+        },
       },
     },
     schemas: {
@@ -278,6 +303,10 @@ export const asyncApiSpec = {
               "TERMINAL_ALREADY_STARTING",
               "TERMINAL_START_FAILED",
               "INPUT_TOO_LARGE",
+              "AI_RATE_LIMITED",
+              "AI_TRANSLATION_FAILED",
+              "AI_UNSAFE_COMMAND",
+              "INTENT_TOO_LONG",
               "INTERNAL_ERROR",
             ],
           },
@@ -294,6 +323,71 @@ export const asyncApiSpec = {
           signature: { type: "string", example: "npm error" },
           detectedAt: { type: "string", format: "date-time" },
         },
+      },
+      AiTranslatePayload: {
+        type: "object",
+        required: ["sandboxId", "intent"],
+        additionalProperties: false,
+        properties: {
+          sandboxId: { type: "string", format: "uuid" },
+          intent: {
+            type: "string",
+            maxLength: 500,
+            example: "find the 10 largest files under /var/log",
+          },
+        },
+      },
+      AiTranslationPayload: {
+        type: "object",
+        required: ["command", "is_destructive", "explanation"],
+        additionalProperties: false,
+        properties: {
+          command: {
+            type: "string",
+            description:
+              "Single-line bash command. Guaranteed to contain no newlines so it can be placed on the cursor line without executing.",
+            example: "du -ah /var/log | sort -rh | head -n 10",
+          },
+          is_destructive: { type: "boolean" },
+          explanation: {
+            type: "string",
+            maxLength: 500,
+            example: "Lists the 10 largest files under /var/log by human-readable size.",
+          },
+        },
+      },
+      AiTranslateAckPayload: {
+        type: "object",
+        required: ["ok"],
+        oneOf: [
+          {
+            type: "object",
+            required: ["ok", "translation"],
+            properties: {
+              ok: { type: "boolean", enum: [true] },
+              translation: { $ref: "#/components/schemas/AiTranslationPayload" },
+            },
+          },
+          {
+            type: "object",
+            required: ["ok", "error"],
+            properties: {
+              ok: { type: "boolean", enum: [false] },
+              error: { $ref: "#/components/schemas/TerminalErrorPayload" },
+            },
+          },
+        ],
+        examples: [
+          {
+            ok: true,
+            translation: {
+              command: "du -ah /var/log | sort -rh | head -n 10",
+              is_destructive: false,
+              explanation:
+                "Lists the 10 largest files under /var/log by human-readable size.",
+            },
+          },
+        ],
       },
     },
   },

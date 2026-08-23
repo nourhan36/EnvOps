@@ -94,6 +94,11 @@ export const env = {
     12_000,
   ),
 
+  // AI command translator (/ai <intent> in the terminal).
+  aiRateLimitPerMinute: readPositiveInteger("AI_RATE_LIMIT_PER_MINUTE", 10),
+  aiMaxIntentChars: readPositiveInteger("AI_MAX_INTENT_CHARS", 500),
+  aiMaxCommandChars: readPositiveInteger("AI_MAX_COMMAND_CHARS", 2_000),
+
   // remove this once real authentication is connected.
   demoUserEmail:
     process.env.DEMO_USER_EMAIL?.trim() || "demo@envops.local",
