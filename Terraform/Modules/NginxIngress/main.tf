@@ -15,13 +15,13 @@ resource "helm_release" "nginx_ingress" {
   }
 }
 
-resource "kubernetes_manifest" "envops_ingress" {
-  manifest = yamldecode(
-    file("${path.root}/../Kubernetes/envops/ingress.yaml")
-  )
+# resource "kubernetes_manifest" "envops_ingress" {
+#   manifest = yamldecode(
+#     file("${path.root}/../Kubernetes/envops/ingress.yaml")
+#   )
 
-  depends_on = [
-    helm_release.nginx_ingress,
-    # kubernetes_manifest.letsencrypt_issuer
-  ]
-}
+#   depends_on = [
+#     helm_release.nginx_ingress,
+#     # kubernetes_manifest.letsencrypt_issuer
+#   ]
+# }

@@ -1,12 +1,12 @@
-locals {
-  ecr_registry = split("/", var.backend_repository_url)[0]
-}
+# locals {
+#   ecr_registry = split("/", var.backend_repository_url)[0]
+# }
 
 # resource "helm_release" "argocd" {
-#   name             = "argocd"
-#   repository       = "https://argoproj.github.io/argo-helm"
-#   chart            = "argo-cd"
-#   version          = var.argocd_chart_version
+#   name       = "argocd"
+#   repository = "https://argoproj.github.io/argo-helm"
+#   chart      = "argo-cd"
+#   version    = var.argocd_chart_version
 
 #   namespace        = "argocd"
 #   create_namespace = true
@@ -48,276 +48,182 @@ locals {
 #       notifications = {
 #         enabled = false
 #       }
-
-#       extraObjects = [
-#         {
-#           apiVersion = "argoproj.io/v1alpha1"
-#           kind       = "Application"
-
-#           metadata = {
-#             name      = "envops"
-#             namespace = "argocd"
-
-#             finalizers = [
-#               "resources-finalizer.argocd.argoproj.io"
-#             ]
-#           }
-
-#           spec = {
-#             project = "default"
-
-#             source = {
-#               repoURL        = var.git_repo_url
-#               targetRevision = var.git_branch
-#               path           = "Kubernetes/gitops/envops"
-#             }
-
-#             destination = {
-#               server    = "https://kubernetes.default.svc"
-#               namespace = "envops-core"
-#             }
-
-#             syncPolicy = {
-#               automated = {
-#                 enabled  = true
-#                 prune    = true
-#                 selfHeal = true
-#               }
-
-#               syncOptions = [
-#                 "CreateNamespace=true"
-#               ]
-#             }
-#           }
-#         }
-#       ]
 #     })
 #   ]
 # }
 
+# resource "kubernetes_manifest" "envops_application" {
+#   manifest = {
+#     apiVersion = "argoproj.io/v1alpha1"
+#     kind       = "Application"
 
-resource "helm_release" "argocd" {
-  name       = "argocd"
-  repository = "https://argoproj.github.io/argo-helm"
-  chart      = "argo-cd"
-  version    = var.argocd_chart_version
+#     metadata = {
+#       name      = "envops"
+#       namespace = "argocd"
 
-  namespace        = "argocd"
-  create_namespace = true
+#       finalizers = [
+#         "resources-finalizer.argocd.argoproj.io"
+#       ]
+#     }
 
-  wait    = true
-  atomic  = true
-  timeout = 900
+#     spec = {
+#       project = "default"
 
-  values = [
-    yamlencode({
-      configs = {
-        repositories = {
-          envops = {
-            url      = var.git_repo_url
-            username = var.git_username
-            password = var.git_token
-            name     = "envops-repo"
-            type     = "git"
-          }
-        }
-      }
+#       source = {
+#         repoURL        = var.git_repo_url
+#         targetRevision = var.git_branch
+#         path           = "Kubernetes"
+#       }
 
-      server = {
-        replicas = 1
-      }
+#       destination = {
+#         server    = "https://kubernetes.default.svc"
+#         namespace = "envops-core"
+#       }
 
-      controller = {
-        replicas = 1
-      }
+#       syncPolicy = {
+#         automated = {
+#           prune    = true
+#           selfHeal = true
+#         }
 
-      repoServer = {
-        replicas = 1
-      }
+#         syncOptions = [
+#           "CreateNamespace=true"
+#         ]
+#       }
+#     }
+#   }
 
-      applicationSet = {
-        replicas = 1
-      }
+#   depends_on = [
+#     helm_release.argocd
+#   ]
+# }
+# resource "helm_release" "image_updater" {
+#   name             = "argocd-image-updater"
+#   repository       = "https://argoproj.github.io/argo-helm"
+#   chart            = "argocd-image-updater"
+#   version          = var.image_updater_chart_version
 
-      notifications = {
-        enabled = false
-      }
-    })
-  ]
-}
+#   namespace        = "argocd"
+#   create_namespace = false
 
-resource "kubernetes_manifest" "envops_application" {
-  manifest = {
-    apiVersion = "argoproj.io/v1alpha1"
-    kind       = "Application"
+#   wait    = true
+#   atomic  = true
+#   timeout = 900
 
-    metadata = {
-      name      = "envops"
-      namespace = "argocd"
+#   depends_on = [
+#     helm_release.argocd
+#   ]
 
-      finalizers = [
-        "resources-finalizer.argocd.argoproj.io"
-      ]
-    }
+#   values = [
+#     yamlencode({
+#       serviceAccount = {
+#         create = true
 
-    spec = {
-      project = "default"
+#         annotations = {
+#           "eks.amazonaws.com/role-arn" = var.image_updater_role_arn
+#         }
+#       }
 
-      source = {
-        repoURL        = var.git_repo_url
-        targetRevision = var.git_branch
-        path           = "Kubernetes"
-      }
+#       extraEnv = [
+#         {
+#           name  = "AWS_REGION"
+#           value = var.aws_region
+#         }
+#       ]
 
-      destination = {
-        server    = "https://kubernetes.default.svc"
-        namespace = "envops-core"
-      }
+#       authScripts = {
+#         enabled = true
 
-      syncPolicy = {
-        automated = {
-          prune    = true
-          selfHeal = true
-        }
+#         scripts = {
+#           "ecr-login.sh" = <<-EOF
+#             #!/bin/sh
+#             set -eu
 
-        syncOptions = [
-          "CreateNamespace=true"
-        ]
-      }
-    }
-  }
+#             PASSWORD=$(/custom-tools/aws ecr get-login-password --region "$AWS_REGION")
 
-  depends_on = [
-    helm_release.argocd
-  ]
-}
-resource "helm_release" "image_updater" {
-  name             = "argocd-image-updater"
-  repository       = "https://argoproj.github.io/argo-helm"
-  chart            = "argocd-image-updater"
-  version          = var.image_updater_chart_version
+#             printf 'AWS:%s\n' "$PASSWORD"
+#           EOF
+#         }
+#       }
 
-  namespace        = "argocd"
-  create_namespace = false
+#       initContainers = [
+#         {
+#           name  = "aws-cli"
+#           image = "amazon/aws-cli:2.27.58"
 
-  wait    = true
-  atomic  = true
-  timeout = 900
+#           command = [
+#             "/bin/sh",
+#             "-c"
+#           ]
 
-  depends_on = [
-    helm_release.argocd
-  ]
+#           args = [
+#             "cp \"$(command -v aws)\" /custom-tools/aws"
+#           ]
 
-  values = [
-    yamlencode({
-      serviceAccount = {
-        create = true
+#                securityContext = {
+#       runAsUser                = 0
+#       runAsGroup               = 0
+#       runAsNonRoot              = false
+#       allowPrivilegeEscalation = false
+#     }
+#           volumeMounts = [
+#             {
+#               name      = "custom-tools"
+#               mountPath = "/custom-tools"
+#             }
+#           ]
+#         }
+#       ]
 
-        annotations = {
-          "eks.amazonaws.com/role-arn" = var.image_updater_role_arn
-        }
-      }
+#       volumes = [
+#         {
+#           name = "custom-tools"
 
-      extraEnv = [
-        {
-          name  = "AWS_REGION"
-          value = var.aws_region
-        }
-      ]
+#           emptyDir = {}
+#         }
+#       ]
 
-      authScripts = {
-        enabled = true
+#       volumeMounts = [
+#         {
+#           name      = "custom-tools"
+#           mountPath = "/custom-tools"
+#         }
+#       ]
 
-        scripts = {
-          "ecr-login.sh" = <<-EOF
-            #!/bin/sh
-            set -eu
+#       config = {
+#         "git.user"  = "envops-image-updater"
+#         "git.email" = "envops-image-updater@users.noreply.github.com"
 
-            PASSWORD=$(/custom-tools/aws ecr get-login-password --region "$AWS_REGION")
+#         registries = [
+#           {
+#             name        = "AWS ECR"
+#             api_url     = "https://${local.ecr_registry}"
+#             prefix      = local.ecr_registry
+#             ping        = true
+#             insecure    = false
+#             credentials = "ext:/scripts/ecr-login.sh"
+#             credsexpire = "11h"
+#           }
+#         ]
+#       }
+#     })
+#   ]
+# }
 
-            printf 'AWS:%s\n' "$PASSWORD"
-          EOF
-        }
-      }
+# resource "kubernetes_secret_v1" "git_creds" {
+#   metadata {
+#     name      = "git-creds"
+#     namespace = "argocd"
+#   }
 
-      initContainers = [
-        {
-          name  = "aws-cli"
-          image = "amazon/aws-cli:2.27.58"
+#   type = "Opaque"
 
-          command = [
-            "/bin/sh",
-            "-c"
-          ]
+#   data = {
+#     username = var.git_username
+#     password = var.git_token
+#   }
 
-          args = [
-            "cp \"$(command -v aws)\" /custom-tools/aws"
-          ]
-
-               securityContext = {
-      runAsUser                = 0
-      runAsGroup               = 0
-      runAsNonRoot              = false
-      allowPrivilegeEscalation = false
-    }
-          volumeMounts = [
-            {
-              name      = "custom-tools"
-              mountPath = "/custom-tools"
-            }
-          ]
-        }
-      ]
-
-      volumes = [
-        {
-          name = "custom-tools"
-
-          emptyDir = {}
-        }
-      ]
-
-      volumeMounts = [
-        {
-          name      = "custom-tools"
-          mountPath = "/custom-tools"
-        }
-      ]
-
-      config = {
-        "git.user"  = "envops-image-updater"
-        "git.email" = "envops-image-updater@users.noreply.github.com"
-
-        registries = [
-          {
-            name        = "AWS ECR"
-            api_url     = "https://${local.ecr_registry}"
-            prefix      = local.ecr_registry
-            ping        = true
-            insecure    = false
-            credentials = "ext:/scripts/ecr-login.sh"
-            credsexpire = "11h"
-          }
-        ]
-      }
-    })
-  ]
-}
-
-resource "kubernetes_secret_v1" "git_creds" {
-  metadata {
-    name      = "git-creds"
-    namespace = "argocd"
-  }
-
-  type = "Opaque"
-
-  data = {
-    username = var.git_username
-    password = var.git_token
-  }
-
-  depends_on = [
-    helm_release.argocd
-  ]
-}
+#   depends_on = [
+#     helm_release.argocd
+#   ]
+# }
