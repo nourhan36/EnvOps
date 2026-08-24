@@ -1,7 +1,7 @@
 variable "argocd_chart_version" {
   description = "Argo CD Helm chart version"
   type        = string
-  default     = "10.2.1"
+  default     = "10.4.0"
 }
 
 variable "image_updater_chart_version" {
