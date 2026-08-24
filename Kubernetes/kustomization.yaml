@@ -46,6 +46,7 @@ resources:
   - envops/backend/migration-job.yaml
   - envops/backend/deployment.yaml
   - envops/backend/service.yaml
+  - envops/ingress.yaml
 
   # Frontend
   - envops/frontend/deployment.yaml
