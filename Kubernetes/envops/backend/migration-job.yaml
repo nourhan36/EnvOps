@@ -1,47 +1,115 @@
+# apiVersion: batch/v1
+# kind: Job
+# metadata:
+#   name: envops-backend-migrate
+#   namespace: envops-core
+#   labels:
+#     app.kubernetes.io/name: envops-backend-migrate
+#     app.kubernetes.io/component: database-migration
+#     app.kubernetes.io/part-of: envops
+#   annotations:
+#     argocd.argoproj.io/hook: Sync
+#     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+#     argocd.argoproj.io/sync-wave: "1"
+  
+# spec:
+#   backoffLimit: 2
+#   ttlSecondsAfterFinished: 86400
+#   template:
+#     metadata:
+#       labels:
+#         app.kubernetes.io/name: envops-backend-migrate
+#         app.kubernetes.io/component: database-migration
+#         app.kubernetes.io/part-of: envops
+#     spec:
+#       restartPolicy: Never
+#       automountServiceAccountToken: false
+#       securityContext:
+#         seccompProfile:
+#           type: RuntimeDefault
+#       containers:
+#         - name: migrate
+#           image: REPLACE_WITH_ECR_BACKEND_IMAGE:latest
+#           imagePullPolicy: Always
+#           command:
+#             - /bin/sh
+#             - -c
+#             - npx prisma migrate deploy && node prisma/seed.cjs
+#           envFrom:
+#             - configMapRef:
+#                 name: envops-backend-config
+#             - secretRef:
+#                 name: postgres-credentials
+#             - secretRef:
+#                 name: redis-credentials
+#           resources:
+#             requests:
+#               cpu: 100m
+#               memory: 256Mi
+#             limits:
+#               cpu: 500m
+#               memory: 512Mi
+#           securityContext:
+#             allowPrivilegeEscalation: false
+#             capabilities:
+#               drop: ["ALL"]
+#             readOnlyRootFilesystem: true
 apiVersion: batch/v1
 kind: Job
+
 metadata:
   name: envops-backend-migrate
   namespace: envops-core
+
   labels:
     app.kubernetes.io/name: envops-backend-migrate
     app.kubernetes.io/component: database-migration
     app.kubernetes.io/part-of: envops
+
   annotations:
     argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
     argocd.argoproj.io/sync-wave: "1"
-  
+
 spec:
   backoffLimit: 2
   ttlSecondsAfterFinished: 86400
+
   template:
     metadata:
       labels:
         app.kubernetes.io/name: envops-backend-migrate
-        app.kubernetes.io/component: database-migration
-        app.kubernetes.io/part-of: envops
+
     spec:
       restartPolicy: Never
       automountServiceAccountToken: false
+
       securityContext:
         seccompProfile:
           type: RuntimeDefault
+
       containers:
         - name: migrate
           image: REPLACE_WITH_ECR_BACKEND_IMAGE:latest
           imagePullPolicy: Always
+
           command:
             - /bin/sh
             - -c
-            - npx prisma migrate deploy && node prisma/seed.cjs
+            - |
+              npx prisma migrate deploy
+              node prisma/seed.cjs
+
           envFrom:
             - configMapRef:
                 name: envops-backend-config
+
             - secretRef:
                 name: postgres-credentials
+
             - secretRef:
                 name: redis-credentials
+
           resources:
             requests:
               cpu: 100m
@@ -49,8 +117,10 @@ spec:
             limits:
               cpu: 500m
               memory: 512Mi
+
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
-              drop: ["ALL"]
+              drop:
+                - ALL
             readOnlyRootFilesystem: true

@@ -4,6 +4,8 @@ metadata:
   name: envops-backend-sandbox-manager
   labels:
     app.kubernetes.io/part-of: envops
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
 
 rules:
   - apiGroups: [""]
