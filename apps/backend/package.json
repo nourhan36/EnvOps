@@ -9,7 +9,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "prisma:generate": "prisma generate",
-    "prisma:seed": "tsx prisma/seed.ts",
+    "prisma:seed": "node prisma/seed.cjs",
     "demo:prepare": "tsx scripts/demo-prepare-sandbox.ts",
     "demo:terminal": "tsx scripts/terminal-demo-client.ts",
     "demo:cleanup": "tsx scripts/demo-cleanup-sandbox.ts",

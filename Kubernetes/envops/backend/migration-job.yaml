@@ -31,7 +31,10 @@ spec:
         - name: migrate
           image: REPLACE_WITH_ECR_BACKEND_IMAGE:latest
           imagePullPolicy: IfNotPresent
-          command: ["npx", "prisma", "migrate", "deploy"]
+          command:
+            - /bin/sh
+            - -c
+            - npx prisma migrate deploy && node prisma/seed.cjs
           envFrom:
             - configMapRef:
                 name: envops-backend-config
