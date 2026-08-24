@@ -183,3 +183,4 @@ prod.tfvars
 
 Kubernetes/secrets-management/localstack
 Terraform/envs/floci-secrets-test
+Terraform/envs/dev.tfvars
