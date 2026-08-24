@@ -3,6 +3,8 @@ kind: HorizontalPodAutoscaler
 metadata:
   name: envops-frontend
   namespace: envops-core
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
 spec:
   scaleTargetRef:
     apiVersion: apps/v1

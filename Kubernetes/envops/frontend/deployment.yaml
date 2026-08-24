@@ -8,6 +8,8 @@ metadata:
     app.kubernetes.io/name: envops-frontend
     app.kubernetes.io/component: web
     app.kubernetes.io/part-of: envops
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
 
 spec:
   replicas: 2
