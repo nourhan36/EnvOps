@@ -30,7 +30,7 @@ spec:
       containers:
         - name: migrate
           image: REPLACE_WITH_ECR_BACKEND_IMAGE:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           command:
             - /bin/sh
             - -c
