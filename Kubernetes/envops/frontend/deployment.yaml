@@ -41,11 +41,17 @@ spec:
         seccompProfile:
           type: RuntimeDefault
 
+      volumes:
+        - name: nginx-cache
+          emptyDir: {}
+        - name: nginx-run
+          emptyDir: {}
+
       containers:
         - name: frontend
 
           image: REPLACE_WITH_ECR_FRONTEND_IMAGE:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
 
           ports:
             - name: http
@@ -82,3 +88,9 @@ spec:
             capabilities:
               drop:
                 - ALL
+
+          volumeMounts:
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: nginx-run
+              mountPath: /var/run
