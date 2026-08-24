@@ -70,19 +70,18 @@ if (env.kubernetesTarget === 'emulator') {
 } else {
     kc = new k8s.KubeConfig();
 
-    if (process.env.KUBERNETES_SERVICE_HOST) {
-        // Running inside Kubernetes/EKS.
-        // Use the pod's ServiceAccount token and CA.
+    try {
         kc.loadFromCluster();
-    } else {
-        // Local development.
-        kc.loadFromDefault();
+    } catch {
+        throw new Error(
+            'Could not load in-cluster Kubernetes configuration.'
+        );
+    }
 
-        if (!kc.getCurrentCluster()) {
-            throw new Error(
-                'No Kubernetes cluster is configured. Set up kubeconfig or use the emulator target.'
-            );
-        }
+    if (!kc.getCurrentCluster()) {
+        throw new Error(
+            'No Kubernetes cluster is configured.'
+        );
     }
 }
 const coreV1Api = kc.makeApiClient(k8s.CoreV1Api);
