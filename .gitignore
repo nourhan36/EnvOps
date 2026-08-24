@@ -197,3 +197,4 @@ Terraform/envs/dev.tfvars
 
 # Sensitive backend configuration if applicable
 backend.tf
+Terraform/envs/dev.tfvars
