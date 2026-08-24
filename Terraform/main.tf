@@ -164,8 +164,8 @@ module "jenkins_agent_irsa" {
 module "nginx_ingress" {
   source = "./Modules/NginxIngress"
 
-  # acme_email  = var.acme_email
-  # domain_name = var.domain_name
+  acme_email  = var.acme_email
+  domain_name = var.domain_name
   depends_on = [
     module.eks
   ]
