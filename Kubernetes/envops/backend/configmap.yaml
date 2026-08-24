@@ -7,7 +7,6 @@ metadata:
     app.kubernetes.io/name: envops-backend
     app.kubernetes.io/part-of: envops
   annotations:
-       argocd.argoproj.io/hook: Sync
        argocd.argoproj.io/sync-wave: "0"    
 data:
   PORT: "3000"
