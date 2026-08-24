@@ -8,6 +8,8 @@ primary:
   persistence:
     enabled: true
     size: 8Gi
+    storageClass: gp2
+
   resources:
     requests:
       cpu: 250m

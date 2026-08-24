@@ -8,6 +8,9 @@ metadata:
     app.kubernetes.io/name: envops-backend
     app.kubernetes.io/component: api
     app.kubernetes.io/part-of: envops
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/sync-wave: "0"
 
 spec:
   type: ClusterIP

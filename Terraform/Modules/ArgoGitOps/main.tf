@@ -166,7 +166,7 @@ resource "kubernetes_manifest" "envops_application" {
       source = {
         repoURL        = var.git_repo_url
         targetRevision = var.git_branch
-        path           = "Kubernetes/gitops/envops"
+        path           = "Kubernetes"
       }
 
       destination = {
@@ -243,7 +243,7 @@ resource "helm_release" "image_updater" {
       initContainers = [
         {
           name  = "aws-cli"
-          image = "amazon/aws-cli:2"
+          image = "amazon/aws-cli:2.27.58"
 
           command = [
             "/bin/sh",
@@ -254,6 +254,12 @@ resource "helm_release" "image_updater" {
             "cp \"$(command -v aws)\" /custom-tools/aws"
           ]
 
+               securityContext = {
+      runAsUser                = 0
+      runAsGroup               = 0
+      runAsNonRoot              = false
+      allowPrivilegeEscalation = false
+    }
           volumeMounts = [
             {
               name      = "custom-tools"
