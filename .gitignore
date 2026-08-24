@@ -184,3 +184,16 @@ prod.tfvars
 Kubernetes/secrets-management/localstack
 Terraform/envs/floci-secrets-test
 Terraform/envs/dev.tfvars
+
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfvars
+
+!*.tfvars.example
+
+*.lock.hcl.backup
+
+# Sensitive backend configuration if applicable
+backend.tf
