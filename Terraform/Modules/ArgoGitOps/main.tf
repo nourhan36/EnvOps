@@ -1,6 +1,6 @@
-locals {
-  ecr_registry = split("/", var.backend_repository_url)[0]
-}
+# locals {
+#   ecr_registry = split("/", var.backend_repository_url)[0]
+# }
 
 resource "helm_release" "argocd" {
   name       = "argocd"
