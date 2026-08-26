@@ -14,6 +14,7 @@ const templates = [
     defaultTtlMinutes: 60,
     securityMode: 'hardened',
   },
+  
   {
     name: 'rich-linux',
     displayName: 'Rich Linux',
