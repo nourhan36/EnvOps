@@ -39,6 +39,7 @@ kubectl apply -f "$root_dir/Kubernetes/secrets-management/secretstore.yaml"
 kubectl apply -f "$root_dir/Kubernetes/secrets-management/externalsecret-postgres.yaml"
 kubectl apply -f "$root_dir/Kubernetes/secrets-management/externalsecret-redis.yaml"
 kubectl apply -f "$root_dir/Kubernetes/secrets-management/externalsecret-backend.yaml"
+kubectl apply -f "$root_dir/Kubernetes/envops/backend/configmap.yaml" -n "$namespace"
 kubectl wait --for=condition=Ready externalsecret/postgres-credentials -n "$namespace" --timeout=5m
 kubectl wait --for=condition=Ready externalsecret/redis-credentials -n "$namespace" --timeout=5m
 kubectl wait --for=condition=Ready externalsecret/backend-credentials -n "$namespace" --timeout=5m

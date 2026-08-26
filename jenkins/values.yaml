@@ -11,7 +11,7 @@ controller:
                 name: "eks-cluster"
                 namespace: "cicd"
                 serverUrl: "https://kubernetes.default.svc"
-                jenkinsUrl: "http://a8e325e1f3a994bdca0022c968ecafe4-1944249208.us-east-1.elb.amazonaws.com"
+                jenkinsUrl: "http://a74e6f23bb2fe428e82a0fbdc06adbff-944904260.us-east-1.elb.amazonaws.com"
 
                 webSocket: true
 
