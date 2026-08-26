@@ -49,6 +49,8 @@ spec:
                 name: postgres-credentials
             - secretRef:
                 name: redis-credentials
+            - secretRef:
+                name: backend-credentials
           resources:
             requests:
               cpu: 100m
