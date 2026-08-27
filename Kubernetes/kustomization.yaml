@@ -2,22 +2,25 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  - ../../envops/namespace.yaml
+  - envops/namespace.yaml
 
   # ESO itself is installed by Terraform. These resources make the cloud
   # secrets available to workloads managed by this Argo CD Application.
-  - ../../secrets-management/secretstore.yaml
-  - ../../secrets-management/externalsecret-postgres.yaml
-  - ../../secrets-management/externalsecret-redis.yaml
+  - secrets-management/secretstore.yaml
+  - secrets-management/externalsecret-postgres.yaml
+  - secrets-management/externalsecret-redis.yaml
 
-  - ../../envops/backend/configmap.yaml
-  - ../../envops/backend/service-account.yaml
-  - ../../envops/backend/rbac.yaml
-  - ../../envops/backend/migration-job.yaml
-  - ../../envops/backend/deployment.yaml
+  - envops/backend/configmap.yaml
+  - envops/backend/service-account.yaml
+  - envops/backend/rbac.yaml
+  - envops/backend/migration-job.yaml
+  - envops/backend/deployment.yaml
+  - envops/backend/service.yaml
 
-  - ../../envops/frontend/deployment.yaml
-  - ../../envops/frontend/hpa.yaml
+  - envops/frontend/deployment.yaml
+  - envops/frontend/service.yaml
+  - envops/frontend/hpa.yaml
+  - envops/ingress.yaml
 
 images:
   - name: REPLACE_WITH_ECR_BACKEND_IMAGE

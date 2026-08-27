@@ -69,7 +69,9 @@ resource "helm_release" "argocd" {
             source = {
               repoURL        = var.git_repo_url
               targetRevision = var.git_branch
-              path           = "Kubernetes/gitops/envops"
+              # Kustomize only permits resources below its root directory.
+              # The root-level kustomization includes all EnvOps manifests.
+              path           = "Kubernetes"
             }
 
             destination = {
